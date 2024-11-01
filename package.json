@@ -1,0 +1,12 @@
+{
+    "name": "prettier-plugin-canvas",
+    "version": "0.1.0",
+    "description": "A Prettier plugin for Blutui Canvas",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/blutui/prettier-plugin-canvas"
+    },
+    "bugs": {
+        "url": "https://github.com/blutui/prettier-plugin-canvas/issues"
+    }
+}
