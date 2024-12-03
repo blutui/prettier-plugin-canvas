@@ -1,12 +1,27 @@
 {
-    "name": "prettier-plugin-canvas",
-    "version": "0.1.0",
-    "description": "A Prettier plugin for Blutui Canvas",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/blutui/prettier-plugin-canvas"
-    },
-    "bugs": {
-        "url": "https://github.com/blutui/prettier-plugin-canvas/issues"
-    }
+  "name": "prettier-plugin-canvas",
+  "version": "0.1.0",
+  "description": "A Prettier plugin for Blutui Canvas",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blutui/prettier-plugin-canvas"
+  },
+  "bugs": {
+    "url": "https://github.com/blutui/prettier-plugin-canvas/issues"
+  },
+  "scripts": {
+    "build": "",
+    "prebuild": "node scripts/build.cjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  },
+  "dependencies": {
+    "ohm-js": "^17.1.0"
+  }
 }
