@@ -2,6 +2,7 @@ import { CanvasNodeTypes, HtmlNodeTypes, NodeTypes, Position } from '@/parser'
 import {
   CanvasHtmlNode,
   CanvasNode,
+  CanvasTag,
   CanvasVariableOutput,
   HtmlComment,
   HtmlDanglingMarkerClose,
@@ -81,6 +82,31 @@ export function hasNonTextChild(node: CanvasHtmlNode) {
   )
 }
 
+export function isPrettierIgnoreHtmlNode(node: CanvasHtmlNode | undefined): node is HtmlComment {
+  return (
+    !!node && node.type === NodeTypes.HtmlComment && /^\s*prettier-ignore(?=\s|$)/m.test(node.body)
+  )
+}
+
+export function isPrettierIgnoreCanvasNode(node: CanvasHtmlNode | undefined): node is CanvasTag {
+  return (
+    !!node &&
+    node.type === NodeTypes.CanvasTag &&
+    node.name === '#' &&
+    /^\s*prettier-ignore(?=\s|$)/m.test(node.markup)
+  )
+}
+
+export function isPrettierIgnoreNode(
+  node: CanvasHtmlNode | undefined
+): node is HtmlComment | CanvasTag {
+  return isPrettierIgnoreCanvasNode(node) || isPrettierIgnoreHtmlNode(node)
+}
+
+export function hasPrettierIgnore(node: CanvasHtmlNode) {
+  return isPrettierIgnoreNode(node) || isPrettierIgnoreNode(node.prev)
+}
+
 export function forceNextEmptyLine(node: CanvasHtmlNode | undefined) {
   if (!node) return false
   if (!node.next) return false
@@ -107,6 +133,40 @@ export function forceBreakChildren(node: CanvasHtmlNode) {
     node.children.length > 0 &&
     (isTagNameIncluded(['html', 'head', 'ul', 'ol', 'select'], node.name) ||
       (node.cssDisplay.startsWith('table') && node.cssDisplay !== 'table-cell'))
+  )
+}
+
+export function preferHardlineAsSurroundingSpaces(node: CanvasHtmlNode) {
+  switch (node.type) {
+    case NodeTypes.HtmlComment:
+      return true
+    case NodeTypes.HtmlElement:
+      return isTagNameIncluded(['script', 'select'], node.name)
+    case NodeTypes.CanvasTag:
+      if ((node.prev && isTextLikeNode(node.prev)) || (node.next && isTextLikeNode(node.next))) {
+        return false
+      }
+      return node.children && node.children.length > 0
+  }
+
+  return false
+}
+
+export function preferHardlineAsLeadingSpaces(node: CanvasHtmlNode) {
+  return (
+    preferHardlineAsSurroundingSpaces(node) ||
+    (isCanvasNode(node) && node.prev && isCanvasNode(node.prev)) ||
+    (node.prev && preferHardlineAsTrailingSpaces(node.prev)) ||
+    hasSurroundingLineBreak(node)
+  )
+}
+
+export function preferHardlineAsTrailingSpaces(node: CanvasHtmlNode) {
+  return (
+    preferHardlineAsSurroundingSpaces(node) ||
+    (isCanvasNode(node) && node.next && (isCanvasNode(node.next) || isHtmlNode(node.next))) ||
+    (node.type === NodeTypes.HtmlElement && isTagNameIncluded(['br'], node.name)) ||
+    hasSurroundingLineBreak(node)
   )
 }
 

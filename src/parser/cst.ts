@@ -10,9 +10,12 @@ export enum ConcreteNodeTypes {
   HtmlTagClose = 'HtmlTagClose',
   CanvasVariableOutput = 'CanvasVariableOutput',
   CanvasTag = 'CanvasTag',
+  CanvasTagOpen = 'CanvasTagOpen',
+  CanvasTagClose = 'CanvasTagClose',
   TextNode = 'TextNode',
 
   CanvasVariable = 'CanvasVariable',
+  Condition = 'Condition',
 }
 
 export interface ConcreteBasicNode<T> {
@@ -39,7 +42,26 @@ export interface ConcreteHtmlTagClose extends ConcreteHtmlNodeBase<ConcreteNodeT
 
 export type ConcreteAttributeNode = ConcreteCanvasNode
 
-export type ConcreteCanvasNode = ConcreteCanvasTag | ConcreteCanvasVariableOutput
+export type ConcreteCanvasNode =
+  | ConcreteCanvasTagOpen
+  | ConcreteCanvasTag
+  | ConcreteCanvasVariableOutput
+
+export type ConcreteCanvasTagOpen = ConcreteCanvasTagOpenBaseCase | ConcreteCanvasTagOpenNamed
+export type ConcreteCanvasTagOpenNamed = ConcreteCanvasTagOpenIf
+
+export interface ConcreteCanvasTagOpenNode<Name, Markup>
+  extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasTagOpen> {
+  name: Name
+  markup: Markup
+}
+
+export interface ConcreteCanvasTagOpenBaseCase extends ConcreteCanvasTagOpenNode<string, string> {}
+
+export interface ConcreteCanvasTagOpenIf
+  extends ConcreteCanvasTagOpenNode<NamedTags.if, ConcreteCanvasCondition[]> {}
+
+export interface ConcreteCanvasCondition extends ConcreteBasicNode<ConcreteNodeTypes.Condition> {}
 
 export type ConcreteCanvasTag = ConcreteCanvasTagNamed
 export type ConcreteCanvasTagNamed = ConcreteCanvasTagInclude

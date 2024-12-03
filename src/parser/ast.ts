@@ -4,6 +4,9 @@ import {
   CanvasCST,
   CanvasHtmlCST,
   ConcreteAttributeNode,
+  ConcreteCanvasTag,
+  ConcreteCanvasTagNamed,
+  ConcreteCanvasTagOpen,
   ConcreteHtmlTagOpen,
   ConcreteNodeTypes,
   ConcreteTextNode,
@@ -11,7 +14,9 @@ import {
 } from './cst'
 import {
   AttributeNode,
+  CanvasBranch,
   CanvasHtmlNode,
+  CanvasTag,
   CanvasVariableOutput,
   DocumentNode,
   HtmlElement,
@@ -20,6 +25,7 @@ import {
   Position,
   TextNode,
 } from './types'
+import { TAGS_WITHOUT_MARKUP } from './grammar'
 
 export function toCanvasHtmlAST(source: string): DocumentNode {
   const cst = toCanvasHtmlCST(source)
@@ -62,8 +68,18 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
         break
       }
 
+      case ConcreteNodeTypes.CanvasTagOpen: {
+        console.log('open: CanvasTagOpen')
+        break
+      }
+
+      case ConcreteNodeTypes.CanvasTagClose: {
+        console.log('close: CanvasTagOpen')
+        break
+      }
+
       case ConcreteNodeTypes.CanvasTag: {
-        console.log('push: CanvasTag')
+        builder.push(toCanvasTag(node))
         break
       }
 
@@ -104,6 +120,19 @@ function toAttributes(attrList: ConcreteAttributeNode[]): AttributeNode[] {
   return cstToAst(attrList) as AttributeNode[]
 }
 
+function toCanvasTag(node: ConcreteCanvasTag | ConcreteCanvasTagOpen): CanvasTag | CanvasBranch {
+  if (typeof node.markup === 'string') {
+    return toNamedCanvasTag(node as ConcreteCanvasTagNamed)
+  } else if (isConcreteCanvasBranchDisguisedAsTag(node)) {
+    return toNamedCanvasBranchBaseCase(node)
+  }
+
+  return {
+    name: node.name,
+    markup: markup(node.name, node.markup),
+  }
+}
+
 function toHtmlElement(node: ConcreteHtmlTagOpen): HtmlElement {
   return {
     type: NodeTypes.HtmlElement,
@@ -142,6 +171,11 @@ function isAcceptableDanglingMarker(builder: ASTBuilder): boolean {
     grandparent.type === NodeTypes.CanvasTag &&
     ['if'].includes(grandparent.name)
   )
+}
+
+function markup(name: string, markup: string) {
+  if (TAGS_WITHOUT_MARKUP.includes(name)) return ''
+  return markup
 }
 
 interface HasPosition {

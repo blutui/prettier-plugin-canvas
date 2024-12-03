@@ -1,8 +1,6 @@
 import * as ohm from 'ohm-js'
 
-export const canvasHtmlGrammars = ohm.grammars(
-  require('../../grammar/canvas-html.ohm.cjs')
-)
+export const canvasHtmlGrammars = ohm.grammars(require('../../grammar/canvas-html.ohm.cjs'))
 
 export interface CanvasGrammars {
   Canvas: ohm.Grammar
@@ -23,3 +21,5 @@ export const placeholderGrammars: CanvasGrammars = {
   Canvas: canvasHtmlGrammars['WithPlaceholderCanvas'],
   CanvasHTML: canvasHtmlGrammars['WithPlaceholderCanvasHTML'],
 }
+
+export const TAGS_WITHOUT_MARKUP = ['else']

@@ -14,8 +14,8 @@ export enum NodeTypes {
   CanvasVariable = 'CanvasVariable',
   CanvasFilter = 'CanvasFilter',
 
-  DoMarkup = 'DoMarkup',
   RawMarkup = 'RawMarkup',
+  IncludeMarkup = 'IncludeMarkup',
 }
 
 export interface Position {
@@ -41,20 +41,33 @@ export interface HasValue {
 
 export type ParentNode = Extract<CanvasHtmlNode, HasChildren | HasValue>
 
-export type CanvasTag = CanvasTagNamed
+export type CanvasTag = CanvasTagNamed | CanvasTagBaseCase
 
-export type CanvasTagNamed = CanvasTagDo
+export type CanvasTagNamed = CanvasTagDo | CanvasTagInclude
 
 export interface CanvasTagNode<Name, Markup> extends ASTNode<NodeTypes.CanvasTag> {
+  /** eg. if, for, etc. */
   name: Name
 
+  /** The non-name part inside the opening Canvas tag. {% tagName [markup] } */
   markup: Markup
 
+  /** If the node has child nodes, the array of child nodes */
   children?: CanvasHtmlNode[]
+
+  /** The range of the opening tag {% tag %} */
+  blockStartPosition: Position
+  /** The range of the closing tag {% endtag %}, if it has one */
+  blockEndPosition?: Position
 }
 
-export interface CanvasTagDo extends CanvasTagNode<NamedTags.do, DoMarkup> {}
-export interface DoMarkup extends ASTNode<NodeTypes.DoMarkup> {}
+export interface CanvasTagBaseCase extends CanvasTagNode<string, string> {}
+
+export interface CanvasTagDo extends CanvasTagNode<NamedTags.do, CanvasVariable> {}
+
+export interface CanvasTagInclude extends CanvasTagNode<NamedTags.include, IncludeMarkup> {}
+
+export interface IncludeMarkup extends ASTNode<NodeTypes.IncludeMarkup> {}
 
 export interface CanvasVariableOutput extends ASTNode<NodeTypes.CanvasVariableOutput> {
   markup: string | CanvasVariable
@@ -85,8 +98,16 @@ export interface TextNode extends ASTNode<NodeTypes.TextNode> {
 }
 
 export interface ASTNode<T> {
+  /**
+   * The type of the node, as a string.
+   * This property is used in discriminated unions.
+   */
   type: T
+
+  /** The range that the node covers */
   position: Position
+
+  /** The contents of the entire document */
   source: string
 }
 
@@ -124,6 +145,7 @@ export interface HtmlElement extends HtmlNodeBase<NodeTypes.HtmlElement> {
 export interface HtmlDanglingMarkerClose extends ASTNode<NodeTypes.HtmlDanglingMarkerClose> {
   name: (TextNode | CanvasVariableOutput)[]
 
+  /** The range covered by the dangling end tag */
   blockStartPosition: Position
 }
 
@@ -166,6 +188,7 @@ export type AttributeNode = CanvasNode
 
 export enum NamedTags {
   do = 'do',
+  if = 'if',
   include = 'include',
 }
 

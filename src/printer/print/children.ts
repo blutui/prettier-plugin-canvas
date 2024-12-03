@@ -11,11 +11,14 @@ import {
 
 import {
   FORCE_FLAT_GROUP_ID,
+  forceBreakChildren,
   forceNextEmptyLine,
   hasNoChildren,
   hasNoCloseMarker,
+  hasPrettierIgnore,
   isEmpty,
   isTextLikeNode,
+  preferHardlineAsLeadingSpaces,
 } from '../utils'
 import {
   needsToBorrowNextOpeningTagStartMarker,
@@ -122,6 +125,10 @@ export function printChildren(
     throw new Error('attempting to use printChildren on something without children')
   }
 
+  if (forceBreakChildren(node)) {
+    console.log('force break children')
+  }
+
   const leadingSpaceGroupIds = node.children.map((_, i) => Symbol(`leading-${i}`))
   const trailingSpaceGroupIds = node.children.map((_, i) => Symbol(`trailing-${i}`))
 
@@ -158,17 +165,29 @@ export function printChildren(
             console.log('text line node')
           } else {
             leadingWhitespace.push(
-              ifBreak('', softline, { groupId: trailingSpaceGroupIds[childIndex - 1] })
+              ifBreak('', softline, {
+                groupId: trailingSpaceGroupIds[childIndex - 1],
+              })
             )
           }
         }
-        console.log(prevBetweenLine)
       }
 
       if (nextBetweenLine) {
         if (forceNextEmptyLine(childNode)) {
+          if (isTextLikeNode(childNode.next)) {
+            trailingHardlines.push(hardline, hardline)
+          }
+        } else if (nextBetweenLine === hardline) {
+          if (isTextLikeNode(childNode.next)) {
+            trailingHardlines.push(hardline)
+          }
+          // there's a hole here, it's intentional.
+        } else {
+          // We know it's not a typeof hardline here because we do the
+          // check on the previous condition.
+          trailingWhitespace.push(nextBetweenLine as doc.builders.Line)
         }
-        console.log(nextBetweenLine)
       }
 
       return {
