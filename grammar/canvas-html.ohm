@@ -147,7 +147,7 @@ Canvas <: Helpers {
         
     canvasTestExpression<delim> = canvasExpression<delim> space* ("is" | "is not") space* testOperator (space* "(" space* arguments<delim>? space* ")")?
         
-    canvasDrop = "{{" "-"? space* canvasDropCases space* "-"? "}}"
+    canvasDrop = "{{" "-"? space* canvasDropCases "-"? "}}"
     canvasDropCases = canvasVariable<delimVO> | canvasDropBaseCase
     canvasDropBaseCase = anyExceptStar<delimVO>
     

@@ -14,12 +14,14 @@ import {
   hasMeaningfulLackOfTrailingWhitespace,
   hasNoChildren,
   hasNoCloseMarker,
+  hasPrettierIgnore,
   isCanvasNode,
   isHtmlComment,
   isHtmlDanglingMarkerOpen,
   isHtmlNode,
   isPreLikeNode,
   isTextLikeNode,
+  shouldPreserveContent,
 } from '../utils'
 import { NodeTypes } from '@/parser'
 
@@ -27,30 +29,16 @@ function shouldNotPrintClosingTag(node: CanvasHtmlNode, _options: CanvasParserOp
   return (
     !hasNoCloseMarker(node) && // has close marker
     !(node as any).blockEndPosition && // does not have blockEndPosition
-    (hasPrettierIgnore(node) || shouldPreserveContent(node.parentNode))
+    (hasPrettierIgnore(node) || shouldPreserveContent(node.parentNode!))
   )
 }
 
 export function needsToBorrowPrevClosingTagEndMarker(node: CanvasHtmlNode) {
   return (
-    isCanvasNode(node) &&
+    !isCanvasNode(node) &&
     node.prev &&
     isHtmlNode(node.prev) &&
     hasMeaningfulLackOfLeadingWhitespace(node)
-  )
-}
-
-export function needsToBorrowNextOpeningTagStartMarker(node: CanvasHtmlNode) {
-  /**
-   *     123<p
-   *        ^^
-   *     >
-   */
-  return (
-    node.next &&
-    isHtmlNode(node.next) &&
-    isTextLikeNode(node) &&
-    hasMeaningfulLackOfTrailingWhitespace(node)
   )
 }
 
@@ -71,6 +59,20 @@ export function needsToBorrowParentClosingTagStartMarker(node: CanvasHtmlNode) {
     hasMeaningfulLackOfTrailingWhitespace(node) &&
     !isCanvasNode(node) &&
     (isTextLikeNode(getLastDescendant(node)) || isCanvasNode(getLastDescendant(node)))
+  )
+}
+
+export function needsToBorrowNextOpeningTagStartMarker(node: CanvasHtmlNode) {
+  /**
+   *     123<p
+   *        ^^
+   *     >
+   */
+  return (
+    node.next &&
+    isHtmlNode(node.next) &&
+    isTextLikeNode(node) &&
+    hasMeaningfulLackOfTrailingWhitespace(node)
   )
 }
 
@@ -120,7 +122,7 @@ export function printOpeningTagStart(node: CanvasHtmlNode, options: CanvasParser
 
 export function printOpeningTagPrefix(node: CanvasHtmlNode, options: CanvasParserOptions) {
   return needsToBorrowParentOpeningTagEndMarker(node)
-    ? printOpeningTagEndMarker(node) // opening tag '>' of parent
+    ? printOpeningTagEndMarker(node.parentNode) // opening tag '>' of parent
     : needsToBorrowPrevClosingTagEndMarker(node)
       ? printClosingTagEndMarker(node.prev, options) // closing '>' of previous
       : ''
@@ -181,9 +183,11 @@ export function printClosingTagPrefix(node: CanvasHtmlNode, options: CanvasParse
 }
 
 export function printClosingTagSuffix(node: CanvasHtmlNode, options: CanvasParserOptions) {
-  return needsToBorrowLastChildClosingTagEndMarker(node)
-    ? printClosingTagEndMarker(node.lastChild, options)
-    : ''
+  return needsToBorrowParentClosingTagStartMarker(node)
+    ? printClosingTagStartMarker(node.parentNode, options)
+    : needsToBorrowNextOpeningTagStartMarker(node)
+      ? printOpeningTagStartMarker(node.next)
+      : ''
 }
 
 export function printClosingTagStartMarker(
@@ -216,6 +220,10 @@ export function printClosingTagEndMarker(
 
   switch (node.type) {
     case NodeTypes.HtmlSelfClosingElement: {
+      // looks like it doesn't make sense because it should be part of
+      // the printOpeningTagEndMarker but this is handled somewhere else.
+      // This function is used to determine what to borrow so the "end" to
+      // borrow is actually the other end.
       return '/>'
     }
 
@@ -228,6 +236,16 @@ export function printOpeningTagEndMarker(node: CanvasHtmlNode | undefined) {
   if (!node) return ''
 
   switch (node.type) {
+    case NodeTypes.HtmlComment:
+      return '-->'
+    case NodeTypes.HtmlSelfClosingElement:
+    case NodeTypes.HtmlVoidElement:
+      return '' // the `>` is printed by the printClosingTagEndMarker for self closing things
+    case NodeTypes.HtmlElement:
+    case NodeTypes.HtmlDanglingMarkerClose:
+    // TODO why is this one not with the other group?
+    case NodeTypes.HtmlRawNode:
+      return '>'
     default:
       return '>'
   }

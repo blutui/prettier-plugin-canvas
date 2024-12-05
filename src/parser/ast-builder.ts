@@ -1,8 +1,16 @@
-import type { ConcreteHtmlTagClose } from './cst'
-import { CanvasHtmlNode, NodeTypes, ParentNode } from './types'
+import { getName, position } from './ast'
+import type { ConcreteCanvasTagClose, ConcreteHtmlTagClose } from './cst'
+import {
+  CanvasBranch,
+  CanvasBranchNode,
+  CanvasHtmlNode,
+  CanvasTag,
+  NodeTypes,
+  ParentNode,
+} from './types'
 import { deepGet, dropLast } from '@/utils'
 
-type ConcreteCloseNode = ConcreteHtmlTagClose
+type ConcreteCloseNode = ConcreteCanvasTagClose | ConcreteHtmlTagClose
 
 export class ASTBuilder {
   /** The AST is what we're building incrementally */
@@ -52,14 +60,59 @@ export class ASTBuilder {
 
   push(node: CanvasHtmlNode) {
     if (node.type === NodeTypes.CanvasBranch) {
+      console.log('push: canvas branch')
     } else {
       this.current.push(node)
     }
   }
 
   close(node: ConcreteCloseNode, nodeType: NodeTypes.CanvasTag | NodeTypes.HtmlElement) {
+    if (isCanvasBranch(this.parent)) {
+      this.parent.blockEndPosition = { start: node.locStart, end: node.locEnd }
+      this.closeParentWith(node)
+    }
+
+    if (!this.parent) {
+      throw new Error(`Attempting to close ${nodeType} '${getName(node)}' before it was opened`)
+    }
+
+    if (getName(this.parent) !== getName(node) || this.parent.type !== nodeType) {
+      const suitableParent = this.findCloseableParentNode(node)
+
+      if (this.parent.type === NodeTypes.HtmlElement) {
+        console.log(suitableParent)
+      } else {
+        throw new Error(
+          `Attempting to close ${nodeType} '${getName(node)} before ${this.parent.type} '${getName(this.parent)}' was closed`
+        )
+      }
+    }
+
     this.parent.position.end = node.locEnd
+    this.parent.blockEndPosition = position(node)
     this.cursor.pop()
     this.cursor.pop()
   }
+
+  findCloseableParentNode(
+    current: ConcreteHtmlTagClose | ConcreteCanvasTagClose
+  ): CanvasTag | null {
+    return null
+  }
+
+  closeParentWith(next: CanvasHtmlNode | ConcreteCloseNode) {
+    if (this.parent) {
+      if ('locStart' in next) {
+        this.parent.position.end = next.locStart
+      } else {
+        this.parent.position.end = next.position.start
+      }
+    }
+    this.cursor.pop()
+    this.cursor.pop()
+  }
+}
+
+function isCanvasBranch(node: CanvasHtmlNode | undefined): node is CanvasBranchNode<any, any> {
+  return !!node && node.type === NodeTypes.CanvasBranch
 }

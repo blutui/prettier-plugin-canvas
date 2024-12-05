@@ -10,15 +10,17 @@ import {
 } from '@/types'
 
 import {
+  FORCE_BREAK_GROUP_ID,
   FORCE_FLAT_GROUP_ID,
   forceBreakChildren,
   forceNextEmptyLine,
-  hasNoChildren,
-  hasNoCloseMarker,
   hasPrettierIgnore,
   isEmpty,
+  isCanvasNode,
+  hasNoCloseMarker,
   isTextLikeNode,
   preferHardlineAsLeadingSpaces,
+  hasNoChildren,
 } from '../utils'
 import {
   needsToBorrowNextOpeningTagStartMarker,
@@ -39,8 +41,8 @@ function printChild(
 ) {
   const child = childPath.node
 
-  if (child) {
-    // hasPrettierIgnore(child)
+  if (hasPrettierIgnore(child)) {
+    console.log('prettier ignore printChild')
   }
 
   return print(childPath, args)
@@ -162,7 +164,11 @@ export function printChildren(
           leadingHardlines.push(hardline)
         } else {
           if (isTextLikeNode(childNode.prev)) {
-            console.log('text line node')
+            if (isCanvasNode(childNode) && prevBetweenLine === softline) {
+              leadingDependentWhitespace.push(prevBetweenLine as typeof softline)
+            } else {
+              leadingWhitespace.push(prevBetweenLine as doc.builders.Line)
+            }
           } else {
             leadingWhitespace.push(
               ifBreak('', softline, {
@@ -225,11 +231,13 @@ export function printChildren(
               }),
               ...trailingWhitespace, // breaks second, if content breaks
             ],
-            { id: trailingSpaceGroupIds[childIndex] }
+            {
+              id: trailingSpaceGroupIds[childIndex],
+            }
           ),
         ],
         {
-          id: trailingSpaceGroupIds[childIndex],
+          id: leadingSpaceGroupIds[childIndex],
         }
       ),
       ...trailingHardlines, // independent
@@ -239,7 +247,7 @@ export function printChildren(
   function leadingSpaceGroupId(
     whitespaceBetweenNode: WhitespaceBetweenNode[],
     index: number
-  ): Symbol[] | Symbol | undefined {
+  ): symbol[] | symbol | undefined {
     if (index === 0) {
       return args.leadingSpaceGroupId
     }
@@ -247,6 +255,26 @@ export function printChildren(
     const prev = whitespaceBetweenNode[index - 1]
     const curr = whitespaceBetweenNode[index]
     const groupIds = []
+
+    if (!isEmpty(prev.trailingHardlines) || !isEmpty(curr.leadingHardlines)) {
+      return FORCE_BREAK_GROUP_ID
+    }
+
+    if (!isEmpty(prev.trailingWhitespace)) {
+      groupIds.push(trailingSpaceGroupIds[index - 1])
+    }
+
+    if (!isEmpty(curr.leadingWhitespace)) {
+      groupIds.push(leadingSpaceGroupIds[index])
+    }
+
+    if (!isEmpty(curr.leadingDependentWhitespace)) {
+      groupIds.push(trailingSpaceGroupIds[index])
+    }
+
+    if (isEmpty(groupIds)) {
+      groupIds.push(FORCE_FLAT_GROUP_ID)
+    }
 
     return groupIds
   }
@@ -256,7 +284,17 @@ export function printChildren(
       return args.trailingSpaceGroupId
     }
 
+    const curr = whitespaceBetweenNode[index]
+    const next = whitespaceBetweenNode[index + 1]
     const groupIds = []
+
+    if (!isEmpty(curr.trailingHardlines) || !isEmpty(next.leadingHardlines)) {
+      return FORCE_BREAK_GROUP_ID
+    }
+
+    if (!isEmpty(curr.trailingWhitespace)) {
+      groupIds.push(trailingSpaceGroupIds[index])
+    }
 
     if (isEmpty(groupIds)) {
       groupIds.push(FORCE_FLAT_GROUP_ID)

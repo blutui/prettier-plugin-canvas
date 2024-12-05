@@ -2,12 +2,12 @@ import { doc, Doc } from 'prettier'
 
 import { NodeTypes } from '@/parser'
 import { AstPath, CanvasParserOptions, CanvasPrinter, CanvasPrinterArgs, HtmlNode } from '@/types'
-import { forceBreakContent, hasNoChildren } from '../utils'
+import { forceBreakContent, hasNoChildren, shouldPreserveContent } from '../utils'
 import { printClosingTag, printClosingTagSuffix, printOpeningTag } from './tag'
 import { printChildren } from './children'
 
 const {
-  builders: { breakParent, group, indent, softline },
+  builders: { breakParent, group, indent, hardline, line, softline },
 } = doc
 
 export function printElement(
@@ -35,6 +35,10 @@ export function printElement(
     ]
   }
 
+  if (shouldPreserveContent(node)) {
+    console.log('shouldPreserveContent')
+  }
+
   const printTag = (doc: Doc) =>
     group(
       [
@@ -48,6 +52,10 @@ export function printElement(
     )
 
   const printLineBeforeChildren = () => {
+    if (node.firstChild!.hasLeadingWhitespace && node.firstChild!.isLeadingWhitespaceSensitive) {
+      return line
+    }
+
     return softline
   }
 
@@ -61,7 +69,13 @@ export function printElement(
   }
 
   if (node.children.length === 0) {
-    console.log('no children')
+    return printTag(
+      node.hasDanglingWhitespace &&
+        node.isDanglingWhitespaceSensitive &&
+        node.blockEndPosition.end !== node.blockEndPosition.start
+        ? line
+        : ''
+    )
   }
 
   return printTag([

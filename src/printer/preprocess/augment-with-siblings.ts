@@ -1,5 +1,11 @@
-import { isCanvasHtmlNode } from '@/parser'
-import { Augment, AugmentedNode, CanvasHtmlNode, WithParent, WithSiblings } from '@/types'
+import {
+  Augment,
+  AugmentedNode,
+  CanvasHtmlNode,
+  isCanvasHtmlNode,
+  WithParent,
+  WithSiblings,
+} from '@/types'
 
 export function prev(node: AugmentedNode<WithParent>) {
   if (!node.parentNode) return

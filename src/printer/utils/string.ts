@@ -1,9 +1,18 @@
+export function isWhitespace(source: string, loc: number): boolean {
+  if (loc < 0 || loc >= source.length) return false
+  return !!source[loc].match(/\s/)
+}
+
 export const trimEnd = (x: string) => x.trimEnd()
 
 export function bodyLines(str: string): string[] {
   return str
     .replace(/^(?: |\t)*(\r?\n)*|\s*$/g, '') // only want the meat
     .split(/\r?\n/)
+}
+
+export function markupLines(markup: string): string[] {
+  return markup.trim().split('\n')
 }
 
 export function reindent(lines: string[], skipFirst = false): string[] {

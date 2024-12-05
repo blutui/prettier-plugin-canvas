@@ -9,12 +9,17 @@ export enum ConcreteNodeTypes {
   HtmlTagOpen = 'HtmlTagOpen',
   HtmlTagClose = 'HtmlTagClose',
   CanvasVariableOutput = 'CanvasVariableOutput',
+  CanvasRawTag = 'CanvasRawTag',
   CanvasTag = 'CanvasTag',
   CanvasTagOpen = 'CanvasTagOpen',
   CanvasTagClose = 'CanvasTagClose',
   TextNode = 'TextNode',
 
   CanvasVariable = 'CanvasVariable',
+  CanvasFilter = 'CanvasFilter',
+  NamedArgument = 'NamedArgument',
+  VariableLookup = 'VariableLookup',
+  String = 'String',
   Condition = 'Condition',
 }
 
@@ -43,9 +48,30 @@ export interface ConcreteHtmlTagClose extends ConcreteHtmlNodeBase<ConcreteNodeT
 export type ConcreteAttributeNode = ConcreteCanvasNode
 
 export type ConcreteCanvasNode =
+  | ConcreteCanvasRawTag
   | ConcreteCanvasTagOpen
+  | ConcreteCanvasTagClose
   | ConcreteCanvasTag
   | ConcreteCanvasVariableOutput
+
+interface ConcreteBasicCanvasNode<T> extends ConcreteBasicNode<T> {
+  whitespaceStart: null | '-'
+  whitespaceEnd: null | '-'
+}
+
+export interface ConcreteCanvasRawTag
+  extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasRawTag> {
+  name: string
+  body: string
+  children: (ConcreteTextNode | ConcreteCanvasNode)[]
+  markup: string
+  delimiterWhitespaceStart: null | '-'
+  delimiterWhitespaceEnd: null | '-'
+  blockStartLocStart: number
+  blockStartLocEnd: number
+  blockEndLocStart: number
+  blockEndLocEnd: number
+}
 
 export type ConcreteCanvasTagOpen = ConcreteCanvasTagOpenBaseCase | ConcreteCanvasTagOpenNamed
 export type ConcreteCanvasTagOpenNamed = ConcreteCanvasTagOpenIf
@@ -61,18 +87,25 @@ export interface ConcreteCanvasTagOpenBaseCase extends ConcreteCanvasTagOpenNode
 export interface ConcreteCanvasTagOpenIf
   extends ConcreteCanvasTagOpenNode<NamedTags.if, ConcreteCanvasCondition[]> {}
 
-export interface ConcreteCanvasCondition extends ConcreteBasicNode<ConcreteNodeTypes.Condition> {}
+export interface ConcreteCanvasCondition extends ConcreteBasicNode<ConcreteNodeTypes.Condition> {
+  relation: 'and' | 'or' | null
+}
 
-export type ConcreteCanvasTag = ConcreteCanvasTagNamed
+export interface ConcreteCanvasTagClose
+  extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasTagClose> {
+  name: string
+}
+
+export type ConcreteCanvasTag = ConcreteCanvasTagNamed | ConcreteCanvasTagBaseCase
 export type ConcreteCanvasTagNamed = ConcreteCanvasTagInclude
-
-interface ConcreteBasicCanvasNode<T> extends ConcreteBasicNode<T> {}
 
 export interface ConcreteCanvasTagNode<Name, Markup>
   extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasTag> {
   markup: Markup
   name: Name
 }
+
+export interface ConcreteCanvasTagBaseCase extends ConcreteCanvasTagNode<string, string> {}
 
 export interface ConcreteCanvasTagInclude
   extends ConcreteCanvasTagNode<NamedTags.include, ConcreteCanvasTagIncludeMarkup> {}
@@ -86,7 +119,35 @@ export interface ConcreteCanvasVariableOutput
 
 export interface ConcreteCanvasVariable
   extends ConcreteBasicNode<ConcreteNodeTypes.CanvasVariable> {
+  expression: ConcreteCanvasExpression
+  filters: ConcreteCanvasFilter[]
   rawSource: string
+}
+
+export interface ConcreteCanvasFilter extends ConcreteBasicNode<ConcreteNodeTypes.CanvasFilter> {
+  name: string
+  args: ConcreteCanvasArgument[]
+}
+
+export type ConcreteCanvasArgument = ConcreteCanvasExpression | ConcreteCanvasNamedArgument
+
+export interface ConcreteCanvasNamedArgument
+  extends ConcreteBasicNode<ConcreteNodeTypes.NamedArgument> {
+  name: string
+  value: ConcreteCanvasExpression
+}
+
+export type ConcreteCanvasExpression = ConcreteStringLiteral | ConcreteCanvasVariableLookup
+
+export interface ConcreteStringLiteral extends ConcreteBasicNode<ConcreteNodeTypes.String> {
+  value: string
+  single: boolean
+}
+
+export interface ConcreteCanvasVariableLookup
+  extends ConcreteBasicNode<ConcreteNodeTypes.VariableLookup> {
+  name: string | null
+  lookups: ConcreteCanvasExpression[]
 }
 
 export type ConcreteHtmlNode = ConcreteHtmlComment | ConcreteHtmlTagOpen | ConcreteHtmlTagClose
@@ -142,6 +203,8 @@ function toCST<T>(
 ): T {
   const locStart = (tokens: ohm.Node[]) => offset + tokens[0].source.startIdx
   const locEnd = (tokens: ohm.Node[]) => offset + tokens[tokens.length - 1].source.endIdx
+  const locEndSecondToLast = (tokens: ohm.Node[]) =>
+    offset + tokens[tokens.length - 2].source.endIdx
 
   const textNode = {
     type: ConcreteNodeTypes.TextNode,
@@ -169,12 +232,69 @@ function toCST<T>(
 
   const CanvasMappings: Mapping = {
     canvasNode: 0,
+    canvasRawTag: 0,
+
+    canvasTagOpen: 0,
+
+    canvasTagClose: 0,
+
+    canvasTag: 0,
+
+    canvasDrop: {
+      type: ConcreteNodeTypes.CanvasVariableOutput,
+      markup: 3,
+      whitespaceStart: 1,
+      whitespaceEnd: 4,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    canvasDropCases: 0,
+    canvasExpression: 0,
+    canvasDropBaseCase: (sw: ohm.Node) => sw.sourceString.trimEnd(),
+    canvasVariable: {
+      type: ConcreteNodeTypes.CanvasVariable,
+      expression: 0,
+      filters: 1,
+      rawSource: (tokens: ohm.Node[]) =>
+        source.slice(locStart(tokens), tokens[tokens.length - 2].source.endIdx).trimEnd(),
+      locStart,
+      // The last node of this rule is a positive lookahead, we don't
+      // want its endIdx, we want the endIdx of the previous one.
+      locEnd: locEndSecondToLast,
+      source,
+    },
+
+    canvasFilter: {
+      type: ConcreteNodeTypes.CanvasFilter,
+      name: 3,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    canvasString: 0,
+
+    canvasVariableLookup: {
+      type: ConcreteNodeTypes.VariableLookup,
+      name: 0,
+      lookups: 1,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    lookup: 0,
+    indexLookup: 3,
+
+    tagMarkup: (n: ohm.Node) => n.sourceString.trim(),
   }
 
   const CanvasHTMLMappings: Mapping = {
     Node(nodes: ohm.Node) {
       const self = this as any
-      const node = []
+      const node: ohm.Node[] = []
 
       return node.concat(nodes.toAST(self.args.mapping))
     },

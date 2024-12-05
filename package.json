@@ -22,6 +22,7 @@
     "vitest": "^2.1.4"
   },
   "dependencies": {
+    "html-styles": "^1.0.0",
     "ohm-js": "^17.1.0"
   }
 }

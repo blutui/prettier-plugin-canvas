@@ -2,11 +2,18 @@ import { assertNever } from '@/utils'
 import { ASTBuilder } from './ast-builder'
 import {
   CanvasCST,
+  CanvasHtmlConcreteNode,
   CanvasHtmlCST,
   ConcreteAttributeNode,
+  ConcreteCanvasExpression,
+  ConcreteCanvasFilter,
   ConcreteCanvasTag,
+  ConcreteCanvasTagClose,
   ConcreteCanvasTagNamed,
   ConcreteCanvasTagOpen,
+  ConcreteCanvasVariable,
+  ConcreteCanvasVariableOutput,
+  ConcreteHtmlTagClose,
   ConcreteHtmlTagOpen,
   ConcreteNodeTypes,
   ConcreteTextNode,
@@ -15,17 +22,31 @@ import {
 import {
   AttributeNode,
   CanvasBranch,
+  CanvasExpression,
+  CanvasFilter,
   CanvasHtmlNode,
   CanvasTag,
+  CanvasVariable,
   CanvasVariableOutput,
   DocumentNode,
   HtmlElement,
   NodeTypes,
   nonTraversableProperties,
+  ParentNode,
   Position,
   TextNode,
 } from './types'
 import { TAGS_WITHOUT_MARKUP } from './grammar'
+
+export function isBranchedTag(node: CanvasHtmlNode) {
+  return node.type === NodeTypes.CanvasTag && ['if', 'for'].includes(node.name)
+}
+
+function isConcreteCanvasBranchDisguisedAsTag(
+  node: CanvasHtmlConcreteNode
+): node is ConcreteCanvasTag & { name: 'else' } {
+  return node.type === ConcreteNodeTypes.CanvasTag && ['else'].includes(node.name)
+}
 
 export function toCanvasHtmlAST(source: string): DocumentNode {
   const cst = toCanvasHtmlCST(source)
@@ -38,6 +59,42 @@ export function toCanvasHtmlAST(source: string): DocumentNode {
       start: 0,
       end: source.length,
     },
+  }
+}
+
+export function getName(
+  node: ConcreteCanvasTagClose | ConcreteHtmlTagClose | ParentNode | undefined
+): string | null {
+  if (!node) return null
+
+  switch (node.type) {
+    case NodeTypes.HtmlElement:
+    case NodeTypes.HtmlDanglingMarkerClose:
+    case NodeTypes.HtmlSelfClosingElement:
+    case ConcreteNodeTypes.HtmlTagClose:
+      return node.name
+        .map((part) => {
+          if (part.type === NodeTypes.TextNode || part.type === ConcreteNodeTypes.TextNode) {
+            return part.value
+          } else if (typeof part.markup === 'string') {
+            return `{{${part.markup.trim()}}}`
+          } else {
+            return `{{${part.markup.rawSource}}}`
+          }
+        })
+        .join('')
+    case NodeTypes.AttrSingleQuoted:
+      return node.name
+        .map((part) => {
+          if (typeof part === 'string') {
+            return part
+          } else {
+            return part.source.slice(part.position.start, part.position.end)
+          }
+        })
+        .join('')
+    default:
+      return node.name
   }
 }
 
@@ -64,7 +121,7 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
       }
 
       case ConcreteNodeTypes.CanvasVariableOutput: {
-        console.log('push: CanvasVariableOutput')
+        builder.push(toCanvasVariableOutput(node))
         break
       }
 
@@ -80,6 +137,11 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
 
       case ConcreteNodeTypes.CanvasTag: {
         builder.push(toCanvasTag(node))
+        break
+      }
+
+      case ConcreteNodeTypes.CanvasRawTag: {
+        console.log('push CanvasRawTag')
         break
       }
 
@@ -121,7 +183,7 @@ function toAttributes(attrList: ConcreteAttributeNode[]): AttributeNode[] {
 }
 
 function toCanvasTag(node: ConcreteCanvasTag | ConcreteCanvasTagOpen): CanvasTag | CanvasBranch {
-  if (typeof node.markup === 'string') {
+  if (typeof node.markup !== 'string') {
     return toNamedCanvasTag(node as ConcreteCanvasTagNamed)
   } else if (isConcreteCanvasBranchDisguisedAsTag(node)) {
     return toNamedCanvasBranchBaseCase(node)
@@ -130,6 +192,66 @@ function toCanvasTag(node: ConcreteCanvasTag | ConcreteCanvasTagOpen): CanvasTag
   return {
     name: node.name,
     markup: markup(node.name, node.markup),
+  }
+}
+
+function toCanvasVariableOutput(node: ConcreteCanvasVariableOutput): CanvasVariableOutput {
+  return {
+    type: NodeTypes.CanvasVariableOutput,
+    markup: typeof node.markup === 'string' ? node.markup : toCanvasVariable(node.markup),
+    whitespaceStart: node.whitespaceStart ?? '',
+    whitespaceEnd: node.whitespaceEnd ?? '',
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toCanvasVariable(node: ConcreteCanvasVariable): CanvasVariable {
+  return {
+    type: NodeTypes.CanvasVariable,
+    expression: toExpression(node.expression),
+    filters: node.filters.map(toFilter),
+    position: position(node),
+    rawSource: node.rawSource,
+    source: node.source,
+  }
+}
+
+function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
+  switch (node.type) {
+    case ConcreteNodeTypes.String: {
+      return {
+        type: NodeTypes.String,
+        position: position(node),
+        single: node.single,
+        value: node.value,
+        source: node.source,
+      }
+    }
+
+    case ConcreteNodeTypes.VariableLookup: {
+      return {
+        type: NodeTypes.VariableLookup,
+        name: node.name,
+        lookups: node.lookups.map(toExpression),
+        position: position(node),
+        source: node.source,
+      }
+    }
+
+    default: {
+      return assertNever(node)
+    }
+  }
+}
+
+function toFilter(node: ConcreteCanvasFilter): CanvasFilter {
+  return {
+    type: NodeTypes.CanvasFilter,
+    name: node.name,
+    args: node.args.map(toCanvasArgument),
+    position: position(node),
+    source: node.source,
   }
 }
 
@@ -183,7 +305,7 @@ interface HasPosition {
   locEnd: number
 }
 
-function position(node: HasPosition): Position {
+export function position(node: HasPosition): Position {
   return {
     start: node.locStart,
     end: node.locEnd,
