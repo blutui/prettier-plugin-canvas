@@ -12,6 +12,9 @@ export enum NodeTypes {
   HtmlDanglingMarkerClose = 'HtmlDanglingMarkerClose',
   HtmlRawNode = 'HtmlRawNode',
   AttrSingleQuoted = 'AttrSingleQuoted',
+  AttrDoubleQuoted = 'AttrDoubleQuoted',
+  AttrUnquoted = 'AttrUnquoted',
+  AttrEmpty = 'AttrEmpty',
   TextNode = 'TextNode',
 
   CanvasVariable = 'CanvasVariable',
@@ -270,9 +273,22 @@ export interface HtmlNodeBase<T> extends ASTNode<T> {
   blockStartPosition: Position
 }
 
-export type AttributeNode = CanvasNode | AttrSingleQuoted
+export type AttributeNode =
+  | CanvasNode
+  | AttrSingleQuoted
+  | AttrDoubleQuoted
+  | AttrUnquoted
+  | AttrEmpty
 
 export interface AttrSingleQuoted extends AttributeNodeBase<NodeTypes.AttrSingleQuoted> {}
+
+export interface AttrDoubleQuoted extends AttributeNodeBase<NodeTypes.AttrDoubleQuoted> {}
+
+export interface AttrUnquoted extends AttributeNodeBase<NodeTypes.AttrUnquoted> {}
+
+export interface AttrEmpty extends ASTNode<NodeTypes.AttrEmpty> {
+  name: (TextNode | CanvasVariableOutput)[]
+}
 
 export interface AttributeNodeBase<T> extends ASTNode<T> {
   name: (TextNode | CanvasVariableOutput)[]

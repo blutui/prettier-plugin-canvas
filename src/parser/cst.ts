@@ -13,6 +13,10 @@ export enum ConcreteNodeTypes {
   CanvasTag = 'CanvasTag',
   CanvasTagOpen = 'CanvasTagOpen',
   CanvasTagClose = 'CanvasTagClose',
+  AttrSingleQuoted = 'AttrSingleQuoted',
+  AttrDoubleQuoted = 'AttrDoubleQuoted',
+  AttrUnquoted = 'AttrUnquoted',
+  AttrEmpty = 'AttrEmpty',
   TextNode = 'TextNode',
 
   CanvasVariable = 'CanvasVariable',
@@ -45,7 +49,27 @@ export interface ConcreteHtmlTagClose extends ConcreteHtmlNodeBase<ConcreteNodeT
   name: (ConcreteTextNode | ConcreteCanvasVariableOutput)[]
 }
 
-export type ConcreteAttributeNode = ConcreteCanvasNode
+export interface ConcreteAttributeNodeBase<T> extends ConcreteBasicNode<T> {
+  name: (ConcreteCanvasVariableOutput | ConcreteTextNode)[]
+  value: (ConcreteCanvasNode | ConcreteTextNode)[]
+}
+
+export type ConcreteAttributeNode =
+  | ConcreteCanvasNode
+  | ConcreteAttrSingleQuoted
+  | ConcreteAttrDoubleQuoted
+  | ConcreteAttrUnquoted
+  | ConcreteAttrEmpty
+
+export interface ConcreteAttrSingleQuoted
+  extends ConcreteAttributeNodeBase<ConcreteNodeTypes.AttrSingleQuoted> {}
+export interface ConcreteAttrDoubleQuoted
+  extends ConcreteAttributeNodeBase<ConcreteNodeTypes.AttrDoubleQuoted> {}
+export interface ConcreteAttrUnquoted
+  extends ConcreteAttributeNodeBase<ConcreteNodeTypes.AttrUnquoted> {}
+export interface ConcreteAttrEmpty extends ConcreteBasicNode<ConcreteNodeTypes.AttrEmpty> {
+  name: (ConcreteCanvasVariableOutput | ConcreteTextNode)[]
+}
 
 export type ConcreteCanvasNode =
   | ConcreteCanvasRawTag
@@ -333,8 +357,49 @@ function toCST<T>(
       return [leadingPart.toAST(mappings)].concat(trailingParts.toAST(mappings))
     },
 
+    AttrUnquoted: {
+      type: ConcreteNodeTypes.AttrUnquoted,
+      name: 0,
+      value: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    AttrSingleQuoted: {
+      type: ConcreteNodeTypes.AttrSingleQuoted,
+      name: 0,
+      value: 3,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    AttrDoubleQuoted: {
+      type: ConcreteNodeTypes.AttrDoubleQuoted,
+      name: 0,
+      value: 3,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    attrEmpty: {
+      type: ConcreteNodeTypes.AttrEmpty,
+      name: 0,
+      locStart,
+      locEnd,
+      source,
+    },
+
     attrName: 0,
     attrNameTextNode: textNode,
+    attrDoubleQuotedValue: 0,
+    attrSingleQuotedValue: 0,
+    attrUnquotedValue: 0,
+    attrDoubleQuotedTextNode: textNode,
+    attrSingleQuotedTextNode: textNode,
+    attrUnquotedTextNode: textNode,
   }
 
   const defaultMappings = {

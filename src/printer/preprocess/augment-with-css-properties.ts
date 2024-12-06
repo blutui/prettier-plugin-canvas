@@ -67,7 +67,10 @@ function getCssDisplay(node: AugmentedNode<WithSiblings>, options: CanvasParserO
     case NodeTypes.CanvasVariableOutput:
       return 'inline'
 
+    case NodeTypes.AttrDoubleQuoted:
     case NodeTypes.AttrSingleQuoted:
+    case NodeTypes.AttrUnquoted:
+    case NodeTypes.AttrEmpty:
       return 'inline'
 
     case NodeTypes.HtmlDoctype:

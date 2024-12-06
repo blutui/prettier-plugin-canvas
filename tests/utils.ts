@@ -4,8 +4,6 @@ import plugin from '@/plugin'
 
 export async function format(str: string, options: prettier.Options = {}) {
   return await prettier.format(str, {
-    semi: false,
-    singleQuote: true,
     ...options,
     parser: 'canvas',
     plugins: [...(options.plugins ?? []), plugin],

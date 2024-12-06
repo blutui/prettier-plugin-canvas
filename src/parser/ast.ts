@@ -4,9 +4,13 @@ import {
   CanvasCST,
   CanvasHtmlConcreteNode,
   CanvasHtmlCST,
+  ConcreteAttrDoubleQuoted,
   ConcreteAttributeNode,
+  ConcreteAttrSingleQuoted,
+  ConcreteAttrUnquoted,
   ConcreteCanvasExpression,
   ConcreteCanvasFilter,
+  ConcreteCanvasNode,
   ConcreteCanvasTag,
   ConcreteCanvasTagClose,
   ConcreteCanvasTagNamed,
@@ -20,11 +24,15 @@ import {
   toCanvasHtmlCST,
 } from './cst'
 import {
+  AttrDoubleQuoted,
   AttributeNode,
+  AttrSingleQuoted,
+  AttrUnquoted,
   CanvasBranch,
   CanvasExpression,
   CanvasFilter,
   CanvasHtmlNode,
+  CanvasNode,
   CanvasTag,
   CanvasVariable,
   CanvasVariableOutput,
@@ -83,6 +91,9 @@ export function getName(
           }
         })
         .join('')
+    case NodeTypes.AttrEmpty:
+    case NodeTypes.AttrUnquoted:
+    case NodeTypes.AttrDoubleQuoted:
     case NodeTypes.AttrSingleQuoted:
       return node.name
         .map((part) => {
@@ -169,6 +180,39 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
         break
       }
 
+      case ConcreteNodeTypes.AttrEmpty: {
+        builder.push({
+          type: NodeTypes.AttrEmpty,
+          name: cstToAst(node.name) as (TextNode | CanvasVariableOutput)[],
+          position: position(node),
+          source: node.source,
+        })
+        break
+      }
+
+      case ConcreteNodeTypes.AttrSingleQuoted:
+      case ConcreteNodeTypes.AttrDoubleQuoted:
+      case ConcreteNodeTypes.AttrUnquoted: {
+        const abstractNode: AttrUnquoted | AttrSingleQuoted | AttrDoubleQuoted = {
+          type: node.type as unknown as
+            | NodeTypes.AttrSingleQuoted
+            | NodeTypes.AttrDoubleQuoted
+            | NodeTypes.AttrUnquoted,
+          name: cstToAst(node.name) as (TextNode | CanvasVariableOutput)[],
+          position: position(node),
+          source: node.source,
+
+          // placeholders
+          attributePosition: { start: -1, end: -1 },
+          value: [],
+        }
+        const value = toAttributeValue(node.value)
+        abstractNode.value = value
+        abstractNode.attributePosition = toAttributePosition(node, value)
+        builder.push(abstractNode)
+        break
+      }
+
       default: {
         assertNever(node)
       }
@@ -176,6 +220,35 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
   }
 
   return builder
+}
+
+function nameLength(names: (ConcreteCanvasVariableOutput | ConcreteTextNode)[]) {
+  const start = names.at(0)!
+  const end = names.at(-1)!
+  return end.locEnd - start.locStart
+}
+
+function toAttributePosition(
+  node: ConcreteAttrSingleQuoted | ConcreteAttrDoubleQuoted | ConcreteAttrUnquoted,
+  value: (CanvasNode | TextNode)[]
+): Position {
+  if (value.length === 0) {
+    return {
+      start: node.locStart + nameLength(node.name) + '='.length + '"'.length,
+      end: node.locStart + nameLength(node.name) + '='.length + '"'.length,
+    }
+  }
+
+  return {
+    start: value[0].position.start,
+    end: value[value.length - 1].position.end,
+  }
+}
+
+function toAttributeValue(
+  value: (ConcreteCanvasNode | ConcreteTextNode)[]
+): (CanvasNode | TextNode)[] {
+  return cstToAst(value) as (CanvasNode | TextNode)[]
 }
 
 function toAttributes(attrList: ConcreteAttributeNode[]): AttributeNode[] {

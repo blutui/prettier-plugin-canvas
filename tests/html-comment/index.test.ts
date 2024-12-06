@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { format, heredoc } from '../utils'
 
-describe('comments', () => {
+describe('HTML Comments', () => {
   test('it should handle the css display of the next node', async () => {
     const result = await format(
       heredoc`
@@ -34,6 +34,52 @@ describe('comments', () => {
       heredoc`
         <!--[if mso]>
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="570" align="center">
+        <![endif]-->
+      `
+    )
+  })
+
+  test('it should support the IE comment `&` operators', async () => {
+    const result = await format(
+      heredoc`
+        <!--[if (gt IE 5)&(lt IE 7)]>
+        <script src="script.js></script>
+        <script>
+          form('#contact');
+        </script>
+        <![endif]-->
+      `
+    )
+
+    expect(result).toBe(
+      heredoc`
+        <!--[if (gt IE 5)&(lt IE 7)]>
+          <script src="script.js></script>
+          <script>
+            form('#contact');
+          </script>
+        <![endif]-->
+      `
+    )
+  })
+
+  test('it should support the IE comment `|` operators', async () => {
+    const result = await format(
+      heredoc`
+        <!--[if (IE 6)|(IE 7)]>
+        <style type="text/css">
+        a { color:#fff; }
+        </style>
+        <![endif]-->
+      `
+    )
+
+    expect(result).toBe(
+      heredoc`
+        <!--[if (IE 6)|(IE 7)]>
+          <style type="text/css">
+          a { color:#fff; }
+          </style>
         <![endif]-->
       `
     )

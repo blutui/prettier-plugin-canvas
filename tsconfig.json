@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
+    "composite": true,
+    "target": "ES2019",
+    "lib": ["ES2019"],
     "strict": true,
     "rootDir": ".",
-    "resolveJsonModule": true,
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "paths": {

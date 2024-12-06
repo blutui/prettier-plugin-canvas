@@ -142,6 +142,33 @@ export function hasPrettierIgnore(node: CanvasHtmlNode) {
   return isPrettierIgnoreNode(node) || isPrettierIgnoreNode(node.prev)
 }
 
+function getPrettierIgnoreAttributeCommentData(value: string): boolean {
+  const match = value.trim().match(/prettier-ignore-attribute(?:s?)(?:\s+(.+))?$/s)
+
+  if (!match) {
+    return false
+  }
+
+  if (!match[1]) {
+    return true
+  }
+
+  return true
+}
+
+export function isPrettierIgnoreAttributeNode(node: CanvasHtmlNode | undefined): boolean {
+  if (!node) return false
+  if (node.type === NodeTypes.HtmlComment) {
+    return getPrettierIgnoreAttributeCommentData(node.body)
+  }
+
+  if (node.type === NodeTypes.CanvasTag && node.name === '#') {
+    return getPrettierIgnoreAttributeCommentData(node.markup)
+  }
+
+  return false
+}
+
 export function forceNextEmptyLine(node: CanvasHtmlNode | undefined) {
   if (!node) return false
   if (!node.next) return false

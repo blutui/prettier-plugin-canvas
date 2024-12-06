@@ -1,3 +1,5 @@
+import { Position } from '@/parser'
+
 export function isWhitespace(source: string, loc: number): boolean {
   if (loc < 0 || loc >= source.length) return false
   return !!source[loc].match(/\s/)
@@ -28,4 +30,20 @@ export function reindent(lines: string[], skipFirst = false): string[] {
 
   const indentStrip = new RegExp('^' + '\\s'.repeat(minIndentLevel))
   return lines.map((line) => line.replace(indentStrip, '')).map(trimEnd)
+}
+
+export function hasLineBreakInRange(source: string, locStart: number, locEnd: number): boolean {
+  const indexOfNewLine = source.indexOf('\n', locStart)
+  return 0 <= indexOfNewLine && indexOfNewLine < locEnd
+}
+
+export function hasMoreThanOneNewLineBetweenNodes(
+  source: string,
+  prev: { position: Position } | undefined,
+  next: { position: Position } | undefined
+): boolean {
+  if (!prev || !next) return false
+  const between = source.slice(prev.position.end, next.position.start)
+  const count = between.match(/\n/g)?.length || 0
+  return count > 1
 }

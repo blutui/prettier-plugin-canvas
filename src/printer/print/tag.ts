@@ -1,3 +1,5 @@
+import { Doc, doc } from 'prettier'
+
 import {
   AstPath,
   CanvasHtmlNode,
@@ -9,21 +11,33 @@ import {
   HtmlSelfClosingElement,
 } from '@/types'
 import {
+  first,
   getLastDescendant,
   hasMeaningfulLackOfLeadingWhitespace,
   hasMeaningfulLackOfTrailingWhitespace,
+  hasMoreThanOneNewLineBetweenNodes,
   hasNoChildren,
   hasNoCloseMarker,
   hasPrettierIgnore,
   isCanvasNode,
   isHtmlComment,
   isHtmlDanglingMarkerOpen,
+  isHtmlElement,
   isHtmlNode,
   isPreLikeNode,
+  isPrettierIgnoreAttributeNode,
+  isSelfClosing,
   isTextLikeNode,
+  isVoidElement,
+  last,
   shouldPreserveContent,
 } from '../utils'
 import { NodeTypes } from '@/parser'
+
+const {
+  builders: { breakParent, indent, join, line, softline, hardline },
+} = doc
+const { replaceEndOfLine } = doc.utils
 
 function shouldNotPrintClosingTag(node: CanvasHtmlNode, _options: CanvasParserOptions) {
   return (
@@ -89,21 +103,93 @@ function printAttributes(
   path: AstPath<HtmlNode>,
   options: CanvasParserOptions,
   print: CanvasPrinter,
-  attrGroupId: Symbol
+  attrGroupId: symbol
 ) {
   const node = path.node
 
   if (isHtmlComment(node)) return ''
   if (node.type === NodeTypes.HtmlDanglingMarkerClose) return ''
 
-  return []
+  if (node.attributes.length === 0) {
+    return isSelfClosing(node) ? ' ' : ''
+  }
+
+  const prettierIgnoreAttributes = isPrettierIgnoreAttributeNode(node.prev)
+
+  const printedAttributes = path.map((attr) => {
+    const attrNode = attr.node
+    let extraNewline: Doc = ''
+    if (
+      attrNode.prev &&
+      hasMoreThanOneNewLineBetweenNodes(attrNode.source, attrNode.prev, attrNode)
+    ) {
+      extraNewline = hardline
+    }
+    const printed = print(attr, { trailingSpaceGroupId: attrGroupId })
+    return [extraNewline, printed]
+  }, 'attributes')
+
+  const forceBreakAttrContent = node.source
+    .slice(node.blockStartPosition.start, last(node.attributes).position.end)
+    .includes('\n')
+
+  const isSingleLineLinkTagException =
+    options.singleLineLinkTags && typeof node.name === 'string' && node.name === 'link'
+
+  const shouldNotBreakAttributes =
+    ((isHtmlElement(node) && node.children.length > 0) ||
+      isVoidElement(node) ||
+      isSelfClosing(node)) &&
+    !forceBreakAttrContent &&
+    node.attributes.length === 1 &&
+    !isCanvasNode(node.attributes[0])
+
+  const forceNotToBreakAttrContent = isSingleLineLinkTagException || shouldNotBreakAttributes
+
+  const whitespaceBetweenAttributes = forceNotToBreakAttrContent
+    ? ' '
+    : options.singleAttributePerLine && node.attributes.length > 1
+      ? hardline
+      : line
+
+  const attributes = prettierIgnoreAttributes
+    ? replaceEndOfLine(
+        node.source.slice(first(node.attributes).position.start, last(node.attributes).position.end)
+      )
+    : join(whitespaceBetweenAttributes, printedAttributes)
+
+  let trailingInnerWhitespace: Doc
+  if (
+    (node.firstChild && needsToBorrowParentOpeningTagEndMarker(node.firstChild)) ||
+    (hasNoCloseMarker(node) && needsToBorrowLastChildClosingTagEndMarker(node.parentNode!)) ||
+    forceNotToBreakAttrContent
+  ) {
+    trailingInnerWhitespace = isSelfClosing(node) ? ' ' : ''
+  } else {
+    trailingInnerWhitespace = options.bracketSameLine
+      ? isSelfClosing(node)
+        ? ' '
+        : ''
+      : isSelfClosing(node)
+        ? line
+        : softline
+  }
+
+  return [
+    indent([
+      forceNotToBreakAttrContent ? ' ' : line,
+      forceBreakAttrContent ? breakParent : '',
+      attributes,
+    ]),
+    trailingInnerWhitespace,
+  ]
 }
 
 export function printOpeningTag(
   path: AstPath<HtmlNode>,
   options: CanvasParserOptions,
   print: CanvasPrinter,
-  attrGroupId: Symbol
+  attrGroupId: symbol
 ) {
   const node = path.node
 

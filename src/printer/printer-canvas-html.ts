@@ -2,6 +2,10 @@ import { doc, Doc, Printer } from 'prettier'
 
 import type {
   AstPath,
+  AttrDoubleQuoted,
+  AttrEmpty,
+  AttrSingleQuoted,
+  AttrUnquoted,
   CanvasAstPath,
   CanvasHtmlNode,
   CanvasParserOptions,
@@ -13,17 +17,109 @@ import type {
   HtmlElement,
   TextNode,
 } from '@/types'
-import { getConditionalComment, NodeTypes } from '@/parser'
+import { getConditionalComment, NodeTypes, Position } from '@/parser'
 import { assertNever } from '@/utils'
 
 import { preprocess } from './print-preprocess'
 import { printCanvasVariableOutput } from './print/canvas'
 import { printChildren } from './print/children'
 import { printElement } from './print/element'
-import { bodyLines, reindent } from './utils'
+import { bodyLines, hasLineBreakInRange, isTextLikeNode, reindent } from './utils'
+import { printClosingTagSuffix, printOpeningTagPrefix } from './print/tag'
 
-const { builders } = doc
-const { group, hardline, indent, join, line, softline } = builders
+const { builders, utils } = doc
+const { fill, group, hardline, indent, join, line, softline } = builders
+
+const oppositeQuotes = {
+  '"': "'",
+  "'": '"',
+}
+
+function printAttributeName(
+  path: AstPath<AttrEmpty | AttrSingleQuoted | AttrUnquoted | AttrDoubleQuoted>,
+  _options: CanvasParserOptions,
+  print: CanvasPrinter
+): Doc {
+  const node = path.node
+  node.name
+  return join(
+    '',
+    (path as any).map((part: AstPath<string | CanvasVariableOutput>) => {
+      const value = part.node
+      if (typeof value === 'string') {
+        return value
+      } else {
+        // We want to force the CanvasVariableOutput to be on one line to avoid weird
+        // issues.
+        return utils.removeLines(print(part as AstPath<CanvasVariableOutput>))
+      }
+    }, 'name')
+  )
+}
+
+function printAttribute<T extends Extract<CanvasHtmlNode, { attributePosition: Position }>>(
+  path: AstPath<T>,
+  options: CanvasParserOptions,
+  print: CanvasPrinter
+): Doc {
+  const node = path.node
+  const attrGroupId = Symbol('attr-group-id')
+
+  const value = node.source.slice(node.attributePosition.start, node.attributePosition.end)
+  const preferredQuote = options.singleQuote ? `'` : `"`
+  const attributeValueContainsQuote = !!node.value.find(
+    (valueNode) => isTextLikeNode(valueNode) && valueNode.value.includes(preferredQuote)
+  )
+  const quote = attributeValueContainsQuote ? oppositeQuotes[preferredQuote] : preferredQuote
+
+  return [
+    printAttributeName(path, options, print),
+    '=',
+    quote,
+    hasLineBreakInRange(node.source, node.attributePosition.start, node.attributePosition.end)
+      ? group([indent([softline, join(hardline, reindent(bodyLines(value), true))]), softline], {
+          id: attrGroupId,
+        })
+      : value,
+    quote,
+  ]
+}
+
+function printTextNode(
+  path: AstPath<TextNode>,
+  options: CanvasParserOptions,
+  _print: CanvasPrinter
+) {
+  const node = path.node
+
+  if (node.value.match(/^\s*$/)) return ''
+  const text = node.value
+
+  const paragraphs = text
+    .split(/(\r?\n){2,}/)
+    .filter(Boolean)
+    .map((curr) => {
+      let doc = []
+      const words = curr.trim().split(/\s+/g)
+      let isFirst = true
+      for (let j = 0; j < words.length; j++) {
+        const word = words[j]
+        if (isFirst) {
+          isFirst = false
+        } else {
+          doc.push(line)
+        }
+        doc.push(word)
+      }
+      return fill(doc)
+    })
+
+  return [
+    printOpeningTagPrefix(node, options),
+    join(hardline, paragraphs),
+    printClosingTagSuffix(node, options),
+  ]
+}
 
 function printNode(
   path: CanvasAstPath,
@@ -85,9 +181,18 @@ function printNode(
       return ''
     }
 
-    case NodeTypes.AttrSingleQuoted: {
-      console.log('print:', NodeTypes.AttrSingleQuoted)
-      return ''
+    case NodeTypes.AttrEmpty: {
+      return printAttributeName(path as AstPath<AttrEmpty>, options, print)
+    }
+
+    case NodeTypes.AttrUnquoted:
+    case NodeTypes.AttrSingleQuoted:
+    case NodeTypes.AttrDoubleQuoted: {
+      return printAttribute(
+        path as AstPath<AttrUnquoted | AttrSingleQuoted | AttrDoubleQuoted>,
+        options,
+        print
+      )
     }
 
     case NodeTypes.HtmlDoctype: {
@@ -157,7 +262,6 @@ function printNode(
     }
 
     case NodeTypes.TextNode: {
-      console.log('print:', NodeTypes.TextNode)
       return printTextNode(path as AstPath<TextNode>, options, print)
     }
 
