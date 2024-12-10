@@ -119,18 +119,14 @@ Canvas <: Helpers {
         | variableSegment
     keyValueSegment = variableSegment space* "," space* variableSegment
     
-    canvasTagOpenIf = canvasTagOpenRule<"if", canvasTagOpenConditionMarkup>
+    canvasTagOpenIf = canvasTagOpenRule<"if", canvasTagOpenConditionalMarkup>
     
     canvasTagElse = canvasTagRule<"else", empty>
     
-    canvasTagOpenConditionMarkup = nonemptyListOf<condition<delimTag>, conditionSeparator> space*
+    canvasTagOpenConditionalMarkup = nonemptyListOf<condition<delimTag>, conditionSeparator> space*
     conditionSeparator = &logicalOperator
     condition<delim> =
-    	logicalOperator? space* conditionExpression<delim> space*
-    conditionExpression<delim> =
-    	| comparison<delim>
-        | canvasTestExpression<delim>
-        | canvasExpression<delim>
+    	logicalOperator? space* (comparison<delim> | canvasTestExpression<delim> | canvasExpression<delim>) space*
     logicalOperator = ("and" | "xor" | "or" | "not" | "in" | "not in") ~identifier
     testOperator = ("constant" | "defined" | "divisible by" | "empty" | "even" | "iterable" | "null" | "odd" | "same as") ~identifier
     comparison<delim> =

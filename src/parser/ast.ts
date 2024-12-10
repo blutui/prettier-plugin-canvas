@@ -8,27 +8,37 @@ import {
   ConcreteAttributeNode,
   ConcreteAttrSingleQuoted,
   ConcreteAttrUnquoted,
+  ConcreteCanvasComparison,
+  ConcreteCanvasCondition,
   ConcreteCanvasExpression,
   ConcreteCanvasFilter,
   ConcreteCanvasNode,
   ConcreteCanvasTag,
+  ConcreteCanvasTagBaseCase,
   ConcreteCanvasTagClose,
   ConcreteCanvasTagNamed,
   ConcreteCanvasTagOpen,
+  ConcreteCanvasTagOpenNamed,
   ConcreteCanvasVariable,
   ConcreteCanvasVariableOutput,
   ConcreteHtmlTagClose,
   ConcreteHtmlTagOpen,
+  ConcreteHtmlVoidElement,
   ConcreteNodeTypes,
   ConcreteTextNode,
   toCanvasHtmlCST,
 } from './cst'
 import {
+  ASTBuildOptions,
   AttrDoubleQuoted,
   AttributeNode,
   AttrSingleQuoted,
   AttrUnquoted,
   CanvasBranch,
+  CanvasBranchBaseCase,
+  CanvasBranchUnnamed,
+  CanvasComparison,
+  CanvasConditionalExpression,
   CanvasExpression,
   CanvasFilter,
   CanvasHtmlNode,
@@ -38,6 +48,8 @@ import {
   CanvasVariableOutput,
   DocumentNode,
   HtmlElement,
+  HtmlVoidElement,
+  NamedTags,
   NodeTypes,
   nonTraversableProperties,
   ParentNode,
@@ -56,13 +68,16 @@ function isConcreteCanvasBranchDisguisedAsTag(
   return node.type === ConcreteNodeTypes.CanvasTag && ['else'].includes(node.name)
 }
 
-export function toCanvasHtmlAST(source: string): DocumentNode {
+export function toCanvasHtmlAST(
+  source: string,
+  options: ASTBuildOptions = { mode: 'tolerant' }
+): DocumentNode {
   const cst = toCanvasHtmlCST(source)
   return {
     type: NodeTypes.Document,
     source: source,
     name: '#document',
-    children: cstToAst(cst),
+    children: cstToAst(cst, options),
     position: {
       start: 0,
       end: source.length,
@@ -110,16 +125,20 @@ export function getName(
 }
 
 export function cstToAst(
-  cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]
+  cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[],
+  options: ASTBuildOptions
 ): CanvasHtmlNode[] {
   if (cst.length === 0) return []
 
-  const builder = buildAst(cst)
+  const builder = buildAst(cst, options)
 
   return builder.ast
 }
 
-function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
+function buildAst(
+  cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[],
+  options: ASTBuildOptions
+) {
   const builder = new ASTBuilder(cst[0].source)
 
   for (let i = 0; i < cst.length; i++) {
@@ -137,17 +156,17 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
       }
 
       case ConcreteNodeTypes.CanvasTagOpen: {
-        console.log('open: CanvasTagOpen')
+        builder.open(toCanvasTag(node, { ...options, isBlockTag: true }))
         break
       }
 
       case ConcreteNodeTypes.CanvasTagClose: {
-        console.log('close: CanvasTagOpen')
+        builder.close(node, NodeTypes.CanvasTag)
         break
       }
 
       case ConcreteNodeTypes.CanvasTag: {
-        builder.push(toCanvasTag(node))
+        builder.push(toCanvasTag(node, { ...options, isBlockTag: false }))
         break
       }
 
@@ -157,7 +176,7 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
       }
 
       case ConcreteNodeTypes.HtmlTagOpen: {
-        builder.open(toHtmlElement(node))
+        builder.open(toHtmlElement(node, options))
         break
       }
 
@@ -167,6 +186,11 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
         } else {
           builder.close(node, NodeTypes.HtmlElement)
         }
+        break
+      }
+
+      case ConcreteNodeTypes.HtmlVoidElement: {
+        builder.push(toHtmlVoidElement(node, options))
         break
       }
 
@@ -183,7 +207,7 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
       case ConcreteNodeTypes.AttrEmpty: {
         builder.push({
           type: NodeTypes.AttrEmpty,
-          name: cstToAst(node.name) as (TextNode | CanvasVariableOutput)[],
+          name: cstToAst(node.name, options) as (TextNode | CanvasVariableOutput)[],
           position: position(node),
           source: node.source,
         })
@@ -198,7 +222,7 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
             | NodeTypes.AttrSingleQuoted
             | NodeTypes.AttrDoubleQuoted
             | NodeTypes.AttrUnquoted,
-          name: cstToAst(node.name) as (TextNode | CanvasVariableOutput)[],
+          name: cstToAst(node.name, options) as (TextNode | CanvasVariableOutput)[],
           position: position(node),
           source: node.source,
 
@@ -206,7 +230,7 @@ function buildAst(cst: CanvasHtmlCST | CanvasCST | ConcreteAttributeNode[]) {
           attributePosition: { start: -1, end: -1 },
           value: [],
         }
-        const value = toAttributeValue(node.value)
+        const value = toAttributeValue(node.value, options)
         abstractNode.value = value
         abstractNode.attributePosition = toAttributePosition(node, value)
         builder.push(abstractNode)
@@ -246,25 +270,140 @@ function toAttributePosition(
 }
 
 function toAttributeValue(
-  value: (ConcreteCanvasNode | ConcreteTextNode)[]
+  value: (ConcreteCanvasNode | ConcreteTextNode)[],
+  options: ASTBuildOptions
 ): (CanvasNode | TextNode)[] {
-  return cstToAst(value) as (CanvasNode | TextNode)[]
+  return cstToAst(value, options) as (CanvasNode | TextNode)[]
 }
 
-function toAttributes(attrList: ConcreteAttributeNode[]): AttributeNode[] {
-  return cstToAst(attrList) as AttributeNode[]
+function toAttributes(
+  attrList: ConcreteAttributeNode[],
+  options: ASTBuildOptions
+): AttributeNode[] {
+  return cstToAst(attrList, options) as AttributeNode[]
 }
 
-function toCanvasTag(node: ConcreteCanvasTag | ConcreteCanvasTagOpen): CanvasTag | CanvasBranch {
+function canvasTagBaseAttributes(
+  node: ConcreteCanvasTag | ConcreteCanvasTagOpen
+): Omit<CanvasTag, 'name' | 'markup'> {
+  return {
+    type: NodeTypes.CanvasTag,
+    position: position(node),
+    whitespaceStart: node.whitespaceStart ?? '',
+    whitespaceEnd: node.whitespaceEnd ?? '',
+    blockStartPosition: position(node),
+    source: node.source,
+  }
+}
+
+function toCanvasTag(
+  node: ConcreteCanvasTag | ConcreteCanvasTagOpen,
+  options: ASTBuildOptions & { isBlockTag: boolean }
+): CanvasTag | CanvasBranch {
   if (typeof node.markup !== 'string') {
-    return toNamedCanvasTag(node as ConcreteCanvasTagNamed)
+    return toNamedCanvasTag(node as ConcreteCanvasTagNamed, options)
   } else if (isConcreteCanvasBranchDisguisedAsTag(node)) {
+    // `elseif`, `else`, but with unparsable markup.
     return toNamedCanvasBranchBaseCase(node)
+  } else if (options.isBlockTag) {
+    console.log('isBlockTag')
   }
 
   return {
     name: node.name,
     markup: markup(node.name, node.markup),
+    ...canvasTagBaseAttributes(node),
+  }
+}
+
+function toNamedCanvasTag(
+  node: ConcreteCanvasTagNamed | ConcreteCanvasTagOpenNamed,
+  options: ASTBuildOptions
+) {
+  switch (node.name) {
+    case NamedTags.do: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: NamedTags.do,
+        markup: toCanvasVariable(node.markup),
+      }
+    }
+
+    case NamedTags.include: {
+      return {}
+    }
+
+    case NamedTags.if: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toConditionalExpression(node.markup),
+        blockEndPosition: { start: -1, end: -1 },
+        children: [],
+      }
+    }
+
+    case NamedTags.elseif: {
+      return {}
+    }
+
+    default: {
+      return assertNever(node)
+    }
+  }
+}
+
+function toNamedCanvasBranchBaseCase(node: ConcreteCanvasTagBaseCase): CanvasBranchBaseCase {
+  return {
+    name: node.name,
+    type: NodeTypes.CanvasBranch,
+    markup: node.name !== 'else' ? node.markup : '',
+    position: { start: node.locStart, end: node.locEnd },
+    children: [],
+    blockStartPosition: { start: node.locStart, end: node.locEnd },
+    blockEndPosition: { start: -1, end: -1 },
+    whitespaceStart: node.whitespaceStart ?? '',
+    whitespaceEnd: node.whitespaceEnd ?? '',
+    source: node.source,
+  }
+}
+
+export function toUnnamedCanvasBranch(parentNode: CanvasHtmlNode): CanvasBranchUnnamed {
+  return {
+    type: NodeTypes.CanvasBranch,
+    name: null,
+    markup: '',
+    position: { start: parentNode.position.end, end: parentNode.position.end },
+    blockStartPosition: { start: parentNode.position.end, end: parentNode.position.end },
+    blockEndPosition: { start: -1, end: -1 },
+    children: [],
+    whitespaceStart: '',
+    whitespaceEnd: '',
+    source: parentNode.source,
+  }
+}
+
+function toConditionalExpression(nodes: ConcreteCanvasCondition[]): CanvasConditionalExpression {
+  if (nodes.length === 1) {
+    return toComparisonOrExpression(nodes[0])
+  }
+}
+
+function toComparisonOrExpression(
+  node: ConcreteCanvasCondition
+): CanvasComparison | CanvasExpression {
+  const expression = node.expression
+  switch (expression.type) {
+    case ConcreteNodeTypes.Comparison:
+      return toComparison(expression)
+    default:
+      return toExpression(expression)
+  }
+}
+
+function toComparison(node: ConcreteCanvasComparison): CanvasComparison {
+  return {
+    type: NodeTypes.Comparison,
   }
 }
 
@@ -302,6 +441,15 @@ function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
       }
     }
 
+    case ConcreteNodeTypes.Number: {
+      return {
+        type: NodeTypes.Number,
+        position: position(node),
+        value: node.value,
+        source: node.source,
+      }
+    }
+
     case ConcreteNodeTypes.VariableLookup: {
       return {
         type: NodeTypes.VariableLookup,
@@ -328,15 +476,29 @@ function toFilter(node: ConcreteCanvasFilter): CanvasFilter {
   }
 }
 
-function toHtmlElement(node: ConcreteHtmlTagOpen): HtmlElement {
+function toHtmlElement(node: ConcreteHtmlTagOpen, options: ASTBuildOptions): HtmlElement {
   return {
     type: NodeTypes.HtmlElement,
-    name: cstToAst(node.name) as (TextNode | CanvasVariableOutput)[],
-    attributes: toAttributes(node.attrList || []),
+    name: cstToAst(node.name, options) as (TextNode | CanvasVariableOutput)[],
+    attributes: toAttributes(node.attrList || [], options),
     position: position(node),
     blockStartPosition: position(node),
     blockEndPosition: { start: -1, end: -1 },
     children: [],
+    source: node.source,
+  }
+}
+
+function toHtmlVoidElement(
+  node: ConcreteHtmlVoidElement,
+  options: ASTBuildOptions
+): HtmlVoidElement {
+  return {
+    type: NodeTypes.HtmlVoidElement,
+    name: node.name,
+    attributes: toAttributes(node.attrList || [], options),
+    position: position(node),
+    blockStartPosition: position(node),
     source: node.source,
   }
 }

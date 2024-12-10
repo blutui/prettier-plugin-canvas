@@ -1,4 +1,5 @@
 import { Position } from '@/parser'
+import { CanvasAstPath, CanvasParserOptions } from '@/types'
 
 export function isWhitespace(source: string, loc: number): boolean {
   if (loc < 0 || loc >= source.length) return false
@@ -30,6 +31,14 @@ export function reindent(lines: string[], skipFirst = false): string[] {
 
   const indentStrip = new RegExp('^' + '\\s'.repeat(minIndentLevel))
   return lines.map((line) => line.replace(indentStrip, '')).map(trimEnd)
+}
+
+export function originallyHadLineBreaks(
+  path: CanvasAstPath,
+  { locStart, locEnd }: CanvasParserOptions
+) {
+  const node = path.node
+  return hasLineBreakInRange(node.source, locStart(node), locEnd(node))
 }
 
 export function hasLineBreakInRange(source: string, locStart: number, locEnd: number): boolean {

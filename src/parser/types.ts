@@ -21,7 +21,9 @@ export enum NodeTypes {
   CanvasFilter = 'CanvasFilter',
   NamedArgument = 'NamedArgument',
   String = 'String',
+  Number = 'Number',
   VariableLookup = 'VariableLookup',
+  Comparison = 'Comparison',
   LogicalExpression = 'LogicalExpression',
 
   RawMarkup = 'RawMarkup',
@@ -100,7 +102,7 @@ export interface CanvasRawTag extends ASTNode<NodeTypes.CanvasRawTag> {
 
 export type CanvasTag = CanvasTagNamed | CanvasTagBaseCase
 
-export type CanvasTagNamed = CanvasTagDo | CanvasTagInclude
+export type CanvasTagNamed = CanvasTagDo | CanvasTagIf | CanvasTagInclude
 
 export interface CanvasTagNode<Name, Markup> extends ASTNode<NodeTypes.CanvasTag> {
   /** eg. if, for, etc. */
@@ -127,15 +129,29 @@ export interface CanvasTagBaseCase extends CanvasTagNode<string, string> {}
 
 export interface CanvasTagDo extends CanvasTagNode<NamedTags.do, CanvasVariable> {}
 
+export interface CanvasTagIf extends CanvasTagConditional<NamedTags.if> {}
+
 export interface CanvasBranchElseif
   extends CanvasBranchNode<NamedTags.elseif, CanvasConditionalExpression> {}
 
-export type CanvasConditionalExpression = CanvasLogicalExpression | CanvasExpression
+export interface CanvasTagConditional<Name>
+  extends CanvasTagNode<Name, CanvasConditionalExpression> {}
+
+export type CanvasConditionalExpression =
+  | CanvasLogicalExpression
+  | CanvasComparison
+  | CanvasExpression
 
 export interface CanvasLogicalExpression extends ASTNode<NodeTypes.LogicalExpression> {
   relation: 'and' | 'or'
   left: CanvasConditionalExpression
   right: CanvasConditionalExpression
+}
+
+export interface CanvasComparison extends ASTNode<NodeTypes.Comparison> {
+  comparator: Comparators
+  left: CanvasExpression
+  right: CanvasExpression
 }
 
 export interface CanvasTagInclude extends CanvasTagNode<NamedTags.include, IncludeMarkup> {}
@@ -180,7 +196,7 @@ export interface CanvasVariable extends ASTNode<NodeTypes.CanvasVariable> {
   rawSource: string
 }
 
-export type CanvasExpression = CanvasString | CanvasVariableLookup
+export type CanvasExpression = CanvasString | CanvasNumber | CanvasVariableLookup
 
 export interface CanvasFilter extends ASTNode<NodeTypes.CanvasFilter> {
   name: string
@@ -199,6 +215,11 @@ export interface CanvasNamedArgument extends ASTNode<NodeTypes.NamedArgument> {
 export interface CanvasString extends ASTNode<NodeTypes.String> {
   single: boolean
 
+  value: string
+}
+
+export interface CanvasNumber extends ASTNode<NodeTypes.Number> {
+  /** as a string for compatibility with numbers like 100_000 */
   value: string
 }
 
@@ -315,6 +336,12 @@ export interface ASTNode<T> {
   /** The contents of the entire document */
   source: string
 }
+
+export interface ASTBuildOptions {
+  mode: 'strict' | 'tolerant' | 'completion'
+}
+
+export enum Comparators {}
 
 export enum NamedTags {
   do = 'do',

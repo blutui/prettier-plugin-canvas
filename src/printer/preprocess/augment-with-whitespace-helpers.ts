@@ -77,7 +77,21 @@ function isLeadingWhitespaceSensitiveNode(node: AugmentedAstNode | undefined): b
   }
 
   if (node.type === NodeTypes.CanvasBranch) {
-    console.log('type:', NodeTypes.CanvasBranch)
+    const isDefaultBranch = node.name === null
+    const hasNoChildren = !!node.firstChild
+    const isParentInnerRightSensitive = isInnerLeftSpaceSensitiveCssDisplay(
+      node.parentNode!.cssDisplay
+    )
+    const isFirstChildLeadingSensitive = isLeadingWhitespaceSensitiveNode(node.firstChild)
+
+    // {% if %}<emptythis>{% endif %}
+    // {% if %}this{% endif %}
+    if (isDefaultBranch) {
+      return isParentInnerRightSensitive && (!hasNoChildren || isFirstChildLeadingSensitive)
+    }
+
+    // {% if %}{% <elseasthis> %}anything{% endif %}
+    return isParentInnerRightSensitive
   }
 
   if (
@@ -141,7 +155,29 @@ function isTrailingWhitespaceSensitiveNode(node: AugmentedAstNode): boolean {
   }
 
   if (node.type === NodeTypes.CanvasBranch) {
-    console.log('type:', NodeTypes.CanvasBranch)
+    const isLastBranch = node.parentNode && node.parentNode.lastChild === node
+    const hasNoLastChild = !node.lastChild
+    const lastChild = node.lastChild
+    const isLastChildTrailingSensitive = !!lastChild && isTrailingWhitespaceSensitiveNode(lastChild)
+
+    // {% if %}{% elseif cond %}<emptythis>{% endif %}
+    // {% if %}{% elseif cond %}this{% endif %}
+    // {% if %}{% else %}<emptythis>{% endif %}
+    // {% if %}{% else %}this{% endif %}
+    if (isLastBranch) {
+      const isParentInnerRightSensitive = isInnerRightWhitespaceSensitiveCssDisplay(
+        node.parentNode!.cssDisplay
+      )
+      return isParentInnerRightSensitive && (hasNoLastChild || isLastChildTrailingSensitive)
+    }
+
+    // {% if %}<emptythis>{% endif %}
+    // {% if %}<emptythis>{% else %}{% endif %}
+    // {% if %}{% elseif cond %}<emptythis>{% else %}{% endif %}
+    // {% if %}this{% endif %}
+    // {% if %}this{% else %}{% endif %}
+    // {% if %}{% elseif cond %}this{% else %}{% endif %}
+    return hasNoLastChild || isLastChildTrailingSensitive
   }
 
   if (isHtmlElementWithoutCloseTag(node)) {

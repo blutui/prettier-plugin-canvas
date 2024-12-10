@@ -2,10 +2,14 @@ import * as ohm from 'ohm-js'
 import { toAST } from 'ohm-js/extras'
 
 import { CanvasGrammars, placeholderGrammars, strictGrammars, tolerantGrammars } from './grammar'
-import { NamedTags } from './types'
+import { Comparators, NamedTags } from './types'
 
 export enum ConcreteNodeTypes {
+  HtmlDoctype = 'HtmlDoctype',
   HtmlComment = 'HtmlComment',
+  HtmlRawTag = 'HtmlRawTag',
+  HtmlVoidElement = 'HtmlVoidElement',
+  HtmlSelfClosingElement = 'HtmlSelfClosingElement',
   HtmlTagOpen = 'HtmlTagOpen',
   HtmlTagClose = 'HtmlTagClose',
   CanvasVariableOutput = 'CanvasVariableOutput',
@@ -24,6 +28,8 @@ export enum ConcreteNodeTypes {
   NamedArgument = 'NamedArgument',
   VariableLookup = 'VariableLookup',
   String = 'String',
+  Number = 'Number',
+  Comparison = 'Comparison',
   Condition = 'Condition',
 }
 
@@ -40,6 +46,11 @@ export interface ConcreteHtmlNodeBase<T> extends ConcreteBasicNode<T> {
 
 export interface ConcreteHtmlComment extends ConcreteBasicNode<ConcreteNodeTypes.HtmlComment> {
   body: string
+}
+
+export interface ConcreteHtmlVoidElement
+  extends ConcreteHtmlNodeBase<ConcreteNodeTypes.HtmlVoidElement> {
+  name: string
 }
 
 export interface ConcreteHtmlTagOpen extends ConcreteHtmlNodeBase<ConcreteNodeTypes.HtmlTagOpen> {
@@ -110,9 +121,18 @@ export interface ConcreteCanvasTagOpenBaseCase extends ConcreteCanvasTagOpenNode
 
 export interface ConcreteCanvasTagOpenIf
   extends ConcreteCanvasTagOpenNode<NamedTags.if, ConcreteCanvasCondition[]> {}
+export interface ConcreteCanvasTagElseIf
+  extends ConcreteCanvasTagNode<NamedTags.elseif, ConcreteCanvasCondition[]> {}
 
 export interface ConcreteCanvasCondition extends ConcreteBasicNode<ConcreteNodeTypes.Condition> {
   relation: 'and' | 'or' | null
+  expression: ConcreteCanvasComparison | ConcreteCanvasExpression
+}
+
+export interface ConcreteCanvasComparison extends ConcreteBasicNode<ConcreteNodeTypes.Comparison> {
+  comparator: Comparators
+  left: ConcreteCanvasExpression
+  right: ConcreteCanvasExpression
 }
 
 export interface ConcreteCanvasTagClose
@@ -121,7 +141,10 @@ export interface ConcreteCanvasTagClose
 }
 
 export type ConcreteCanvasTag = ConcreteCanvasTagNamed | ConcreteCanvasTagBaseCase
-export type ConcreteCanvasTagNamed = ConcreteCanvasTagInclude
+export type ConcreteCanvasTagNamed =
+  | ConcreteCanvasTagDo
+  | ConcreteCanvasTagElseIf
+  | ConcreteCanvasTagInclude
 
 export interface ConcreteCanvasTagNode<Name, Markup>
   extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasTag> {
@@ -130,6 +153,9 @@ export interface ConcreteCanvasTagNode<Name, Markup>
 }
 
 export interface ConcreteCanvasTagBaseCase extends ConcreteCanvasTagNode<string, string> {}
+
+export interface ConcreteCanvasTagDo
+  extends ConcreteCanvasTagNode<NamedTags.do, ConcreteCanvasVariable> {}
 
 export interface ConcreteCanvasTagInclude
   extends ConcreteCanvasTagNode<NamedTags.include, ConcreteCanvasTagIncludeMarkup> {}
@@ -161,11 +187,18 @@ export interface ConcreteCanvasNamedArgument
   value: ConcreteCanvasExpression
 }
 
-export type ConcreteCanvasExpression = ConcreteStringLiteral | ConcreteCanvasVariableLookup
+export type ConcreteCanvasExpression =
+  | ConcreteStringLiteral
+  | ConcreteNumberLiteral
+  | ConcreteCanvasVariableLookup
 
 export interface ConcreteStringLiteral extends ConcreteBasicNode<ConcreteNodeTypes.String> {
   value: string
   single: boolean
+}
+
+export interface ConcreteNumberLiteral extends ConcreteBasicNode<ConcreteNodeTypes.Number> {
+  value: string // float parsing is weird but supported
 }
 
 export interface ConcreteCanvasVariableLookup
@@ -174,7 +207,11 @@ export interface ConcreteCanvasVariableLookup
   lookups: ConcreteCanvasExpression[]
 }
 
-export type ConcreteHtmlNode = ConcreteHtmlComment | ConcreteHtmlTagOpen | ConcreteHtmlTagClose
+export type ConcreteHtmlNode =
+  | ConcreteHtmlComment
+  | ConcreteHtmlVoidElement
+  | ConcreteHtmlTagOpen
+  | ConcreteHtmlTagClose
 
 export interface ConcreteTextNode extends ConcreteBasicNode<ConcreteNodeTypes.TextNode> {
   value: string
@@ -259,10 +296,74 @@ function toCST<T>(
     canvasRawTag: 0,
 
     canvasTagOpen: 0,
+    canvasTagOpenStrict: 0,
+    canvasTagOpenBaseCase: 0,
+    canvasTagOpenRule: {
+      type: ConcreteNodeTypes.CanvasTagOpen,
+      name: 3,
+      markup(nodes: ohm.Node[]) {
+        const markupNode = nodes[6]
+        const nameNode = nodes[3]
+        if (NamedTags.hasOwnProperty(nameNode.sourceString)) {
+          return markupNode.toAST((this as any).args.mapping)
+        }
+        return markupNode.sourceString.trim()
+      },
+      whitespaceStart: 1,
+      whitespaceEnd: 7,
+      locStart,
+      locEnd,
+      source,
+    },
 
-    canvasTagClose: 0,
+    canvasTagOpenIf: 0,
+    canvasTagElse: 0,
+    canvasTagOpenConditionalMarkup: 0,
+    condition: {
+      type: ConcreteNodeTypes.Condition,
+      relation: 0,
+      expression: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+    comparison: {
+      type: ConcreteNodeTypes.Comparison,
+    },
+
+    canvasTagClose: {
+      type: ConcreteNodeTypes.CanvasTagClose,
+      name: 4,
+      whitespaceStart: 1,
+      whitespaceEnd: 7,
+      locStart,
+      locEnd,
+      source,
+    },
 
     canvasTag: 0,
+    canvasTagStrict: 0,
+    canvasTagBaseCase: 0,
+    canvasTagDo: 0,
+    canvasTagRule: {
+      type: ConcreteNodeTypes.CanvasTag,
+      name: 3,
+      markup(nodes: ohm.Node[]) {
+        const markupNode = nodes[6]
+        const nameNode = nodes[3]
+        if (NamedTags.hasOwnProperty(nameNode.sourceString)) {
+          return markupNode.toAST((this as any).args.mapping)
+        }
+        return markupNode.sourceString.trim()
+      },
+      whitespaceStart: 1,
+      whitespaceEnd: 7,
+      source,
+      locStart,
+      locEnd,
+    },
+
+    canvasTagDoMarkup: 0,
 
     canvasDrop: {
       type: ConcreteNodeTypes.CanvasVariableOutput,
@@ -300,6 +401,14 @@ function toCST<T>(
 
     canvasString: 0,
 
+    canvasNumber: {
+      type: ConcreteNodeTypes.Number,
+      value: 0,
+      locStart,
+      locEnd,
+      source,
+    },
+
     canvasVariableLookup: {
       type: ConcreteNodeTypes.VariableLookup,
       name: 0,
@@ -311,6 +420,13 @@ function toCST<T>(
 
     lookup: 0,
     indexLookup: 3,
+    dotLookup: {
+      type: ConcreteNodeTypes.String,
+      value: 3,
+      locStart: (nodes: ohm.Node[]) => offset + nodes[2].source.startIdx,
+      locEnd: (nodes: ohm.Node[]) => offset + nodes[nodes.length - 1].source.endIdx,
+      source,
+    },
 
     tagMarkup: (n: ohm.Node) => n.sourceString.trim(),
   }
@@ -326,6 +442,15 @@ function toCST<T>(
     HtmlComment: {
       type: ConcreteNodeTypes.HtmlComment,
       body: markup(1),
+      locStart,
+      locEnd,
+      source,
+    },
+
+    HtmlVoidElement: {
+      type: ConcreteNodeTypes.HtmlVoidElement,
+      name: 1,
+      attrList: 3,
       locStart,
       locEnd,
       source,

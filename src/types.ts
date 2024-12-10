@@ -18,6 +18,8 @@ export type CanvasParserOptions = ParserOptions<CanvasHtmlNode> & {}
 export type CanvasPrinterArgs = {
   leadingSpaceGroupId?: symbol[] | symbol
   trailingSpaceGroupId?: symbol[] | symbol
+  isCanvasStatement?: boolean
+  truncate?: boolean
 }
 export type CanvasPrinter = (path: AstPath<CanvasHtmlNode>, args?: CanvasPrinterArgs) => Doc
 
@@ -83,7 +85,7 @@ export type CanvasNode = Augmented<AST.CanvasNode, AllAugmentations>
 export type CanvasStatement = Augmented<AST.CanvasStatement, AllAugmentations>
 export type ParentNode = Augmented<AST.ParentNode, AllAugmentations>
 export type CanvasRawTag = Augmented<AST.CanvasRawTag, AllAugmentations>
-export type CanvasTag = Augmented<AST.CanvasNode, AllAugmentations>
+export type CanvasTag = Augmented<AST.CanvasTag, AllAugmentations>
 export type CanvasTagNamed = Augmented<AST.CanvasTagNamed, AllAugmentations>
 export type CanvasBranch = Augmented<AST.CanvasBranch, AllAugmentations>
 export type CanvasBranchNamed = Augmented<AST.CanvasBranchNamed, AllAugmentations>

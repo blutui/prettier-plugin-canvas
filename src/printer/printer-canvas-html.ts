@@ -7,21 +7,25 @@ import type {
   AttrSingleQuoted,
   AttrUnquoted,
   CanvasAstPath,
+  CanvasBranch,
+  CanvasExpression,
   CanvasHtmlNode,
   CanvasParserOptions,
   CanvasPrinter,
   CanvasPrinterArgs,
+  CanvasTag,
   CanvasVariableOutput,
   DocumentNode,
   HtmlDanglingMarkerClose,
   HtmlElement,
+  HtmlVoidElement,
   TextNode,
 } from '@/types'
 import { getConditionalComment, NodeTypes, Position } from '@/parser'
 import { assertNever } from '@/utils'
 
 import { preprocess } from './print-preprocess'
-import { printCanvasVariableOutput } from './print/canvas'
+import { printCanvasBranch, printCanvasTag, printCanvasVariableOutput } from './print/canvas'
 import { printChildren } from './print/children'
 import { printElement } from './print/element'
 import { bodyLines, hasLineBreakInRange, isTextLikeNode, reindent } from './utils'
@@ -143,8 +147,7 @@ function printNode(
     }
 
     case NodeTypes.HtmlVoidElement: {
-      console.log('print:', NodeTypes.HtmlVoidElement)
-      return ''
+      return printElement(path as AstPath<HtmlVoidElement>, options, print, args)
     }
 
     case NodeTypes.HtmlSelfClosingElement: {
@@ -172,13 +175,11 @@ function printNode(
     }
 
     case NodeTypes.CanvasTag: {
-      console.log('print:', NodeTypes.CanvasTag)
-      return ''
+      return printCanvasTag(path as AstPath<CanvasTag>, options, print, args)
     }
 
     case NodeTypes.CanvasBranch: {
-      console.log('print:', NodeTypes.CanvasBranch)
-      return ''
+      return printCanvasBranch(path as AstPath<CanvasBranch>, options, print, args)
     }
 
     case NodeTypes.AttrEmpty: {
@@ -270,12 +271,37 @@ function printNode(
       return ''
     }
 
+    case NodeTypes.Number: {
+      if (args.truncate) {
+        return node.value.replace(/\.\d+$/, '')
+      } else {
+        return node.value
+      }
+    }
+
     case NodeTypes.VariableLookup: {
       const doc: Doc[] = []
       if (node.name) {
         doc.push(node.name)
       }
-      const lookups: Doc[] = []
+      const lookups: Doc[] = path.map((lookupPath, index) => {
+        const lookup = lookupPath.node as CanvasExpression
+        switch (lookup.type) {
+          case NodeTypes.String: {
+            const value = lookup.value
+            // We prefer direct access
+            // (for everything but stuff with dashes and stuff that starts with a number)
+            const isGlobalStringLookup = index === 0 && !node.name
+            if (!isGlobalStringLookup && /^\D/.test(value) && /^[a-z0-9_]+\??$/i.test(value)) {
+              return ['.', value]
+            }
+            return ['[', print(lookupPath), ']']
+          }
+          default: {
+            return ['[', print(lookupPath), ']']
+          }
+        }
+      }, 'lookups')
 
       return [...doc, ...lookups]
     }

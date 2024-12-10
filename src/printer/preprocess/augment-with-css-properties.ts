@@ -84,6 +84,7 @@ function getCssDisplay(node: AugmentedNode<WithSiblings>, options: CanvasParserO
     case NodeTypes.CanvasFilter:
     case NodeTypes.NamedArgument:
     case NodeTypes.String:
+    case NodeTypes.Number:
     case NodeTypes.VariableLookup:
     case NodeTypes.LogicalExpression:
       return 'should not be relevant'

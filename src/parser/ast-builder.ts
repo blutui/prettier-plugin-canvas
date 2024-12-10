@@ -1,5 +1,5 @@
-import { getName, position } from './ast'
-import type { ConcreteCanvasTagClose, ConcreteHtmlTagClose } from './cst'
+import { getName, isBranchedTag, position, toUnnamedCanvasBranch } from './ast'
+import { ConcreteNodeTypes, type ConcreteCanvasTagClose, type ConcreteHtmlTagClose } from './cst'
 import {
   CanvasBranch,
   CanvasBranchNode,
@@ -56,11 +56,31 @@ export class ASTBuilder {
     this.current.push(node)
     this.cursor.push(this.currentPosition)
     this.cursor.push('children')
+
+    if (isBranchedTag(node)) {
+      this.open(toUnnamedCanvasBranch(node))
+    }
   }
 
   push(node: CanvasHtmlNode) {
     if (node.type === NodeTypes.CanvasBranch) {
-      console.log('push: canvas branch')
+      const previousBranch = this.findCloseableParentBranch(node)
+      if (previousBranch) {
+        previousBranch.blockEndPosition = { start: node.position.start, end: node.position.start }
+        // close dangling open HTML nodes
+        while (
+          this.parent &&
+          (this.parent as ParentNode) !== previousBranch &&
+          this.parent.type === NodeTypes.HtmlElement
+        ) {
+          // 0-length blockEndPosition at the position of the next branch
+          this.parent.blockEndPosition = { start: node.position.start, end: node.position.start }
+          this.closeParentWith(node)
+        }
+        // close the previous branch
+        this.closeParentWith(node)
+      }
+      this.open(node)
     } else {
       this.current.push(node)
     }
@@ -68,7 +88,7 @@ export class ASTBuilder {
 
   close(node: ConcreteCloseNode, nodeType: NodeTypes.CanvasTag | NodeTypes.HtmlElement) {
     if (isCanvasBranch(this.parent)) {
-      this.parent.blockEndPosition = { start: node.locStart, end: node.locEnd }
+      this.parent.blockEndPosition = { start: node.locStart, end: node.locStart }
       this.closeParentWith(node)
     }
 
@@ -79,7 +99,7 @@ export class ASTBuilder {
     if (getName(this.parent) !== getName(node) || this.parent.type !== nodeType) {
       const suitableParent = this.findCloseableParentNode(node)
 
-      if (this.parent.type === NodeTypes.HtmlElement) {
+      if (this.parent.type === NodeTypes.HtmlElement && suitableParent) {
         console.log(suitableParent)
       } else {
         throw new Error(
@@ -88,15 +108,51 @@ export class ASTBuilder {
       }
     }
 
+    // The parent end is the end of the outer tag.
     this.parent.position.end = node.locEnd
     this.parent.blockEndPosition = position(node)
+    if (this.parent.type == NodeTypes.CanvasTag && node.type == ConcreteNodeTypes.CanvasTagClose) {
+      this.parent.delimiterWhitespaceStart = node.whitespaceStart ?? ''
+      this.parent.delimiterWhitespaceEnd = node.whitespaceEnd ?? ''
+    }
     this.cursor.pop()
     this.cursor.pop()
+  }
+
+  findCloseableParentBranch(next: CanvasBranch): CanvasBranch | null {
+    for (let index = this.cursor.length - 1; index > 0; index -= 2) {
+      const parent = deepGet<ParentNode>(this.cursor.slice(0, index), this.ast)
+      const parentProperty = this.cursor[index] as string
+      const isUnclosedHtmlElement =
+        parent.type === NodeTypes.HtmlElement && parentProperty === 'children'
+      if (parent.type === NodeTypes.CanvasBranch) {
+        return parent
+      } else if (!isUnclosedHtmlElement) {
+        throw new Error(
+          `Attempting to open CanvasBranch '${next.name}' before ${parent.type} '${getName(
+            parent
+          )}' was closed`
+        )
+      }
+    }
+    return null
   }
 
   findCloseableParentNode(
     current: ConcreteHtmlTagClose | ConcreteCanvasTagClose
   ): CanvasTag | null {
+    for (let index = this.cursor.length - 1; index > 0; index -= 2) {
+      const parent = deepGet<ParentNode>(this.cursor.slice(0, index), this.ast)
+      if (
+        getName(parent) === getName(current) &&
+        parent.type === NodeTypes.CanvasTag &&
+        ['if'].includes(parent.name)
+      ) {
+        return parent
+      } else if (parent.type === NodeTypes.CanvasTag) {
+        return null
+      }
+    }
     return null
   }
 
