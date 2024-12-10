@@ -194,4 +194,25 @@ describe('HTML Attributes', () => {
       `
     )
   })
+
+  test('if there is only one attribute, not self-closing and with children, but the attribute is a Canvas tag that has children, break it normally', async () => {
+    const result = await format(
+      heredoc`
+        <div {% if some_condition %} attribute=value {% endif %}>hello world</div>
+      `,
+      { printWidth: 30 }
+    )
+
+    expect(result).toBe(
+      heredoc`
+        <div
+          {% if some_condition %}
+            attribute="value"
+          {% endif %}
+        >
+          hello world
+        </div>
+      `
+    )
+  })
 })
