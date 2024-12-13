@@ -1,14 +1,37 @@
 import { doc, Doc } from 'prettier'
 
 import { NodeTypes } from '@/parser'
-import { AstPath, CanvasParserOptions, CanvasPrinter, CanvasPrinterArgs, HtmlNode } from '@/types'
+import {
+  AstPath,
+  CanvasParserOptions,
+  CanvasPrinter,
+  CanvasPrinterArgs,
+  HtmlNode,
+  HtmlRawNode,
+} from '@/types'
 import { forceBreakContent, hasNoChildren, shouldPreserveContent } from '../utils'
-import { printClosingTag, printClosingTagSuffix, printOpeningTag } from './tag'
+import {
+  needsToBorrowLastChildClosingTagEndMarker,
+  needsToBorrowPrevClosingTagEndMarker,
+  printClosingTag,
+  printClosingTagSuffix,
+  printOpeningTag,
+} from './tag'
 import { printChildren } from './children'
 
 const {
-  builders: { breakParent, group, indent, hardline, line, softline },
+  builders: { breakParent, dedentToRoot, group, indent, hardline, line, softline },
 } = doc
+
+export function printRawElement(
+  path: AstPath<HtmlRawNode>,
+  options: CanvasParserOptions,
+  print: CanvasPrinter,
+  _args: CanvasPrinterArgs
+) {
+  console.log('print raw element')
+  return group([])
+}
 
 export function printElement(
   path: AstPath<HtmlNode>,
@@ -21,8 +44,7 @@ export function printElement(
   const elementGroupId = Symbol('element-group-id')
 
   if (node.type === NodeTypes.HtmlRawNode) {
-    console.log('raw node')
-    return []
+    return printRawElement(path as AstPath<HtmlRawNode>, options, print, args)
   }
 
   if (hasNoChildren(node)) {
@@ -56,6 +78,14 @@ export function printElement(
       return line
     }
 
+    if (
+      node.firstChild!.type === NodeTypes.TextNode &&
+      node.isWhitespaceSensitive &&
+      node.isIndentationSensitive
+    ) {
+      return dedentToRoot(softline)
+    }
+
     return softline
   }
 
@@ -63,6 +93,20 @@ export function printElement(
     // does not have the closing tag
     if (node.blockEndPosition.start === node.blockEndPosition.end) {
       return ''
+    }
+
+    const needsToBorrow = node.next
+      ? needsToBorrowPrevClosingTagEndMarker(node.next)
+      : needsToBorrowLastChildClosingTagEndMarker(node.parentNode!)
+    if (needsToBorrow) {
+      if (node.lastChild!.hasTrailingWhitespace && node.lastChild!.isTrailingWhitespaceSensitive) {
+        return ' '
+      }
+      return ''
+    }
+
+    if (node.lastChild!.hasTrailingWhitespace && node.lastChild!.isTrailingWhitespaceSensitive) {
+      return line
     }
 
     return softline

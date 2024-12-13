@@ -1,5 +1,4 @@
-import { assertNever } from '@/utils'
-import { ASTBuilder } from './ast-builder'
+import { assertNever, deepGet, dropLast } from '@/utils'
 import {
   CanvasCST,
   CanvasHtmlConcreteNode,
@@ -8,14 +7,17 @@ import {
   ConcreteAttributeNode,
   ConcreteAttrSingleQuoted,
   ConcreteAttrUnquoted,
+  ConcreteCanvasArgument,
   ConcreteCanvasComparison,
   ConcreteCanvasCondition,
   ConcreteCanvasExpression,
   ConcreteCanvasFilter,
+  ConcreteCanvasNamedArgument,
   ConcreteCanvasNode,
   ConcreteCanvasTag,
   ConcreteCanvasTagBaseCase,
   ConcreteCanvasTagClose,
+  ConcreteCanvasTagIncludeMarkup,
   ConcreteCanvasTagNamed,
   ConcreteCanvasTagOpen,
   ConcreteCanvasTagOpenNamed,
@@ -34,21 +36,27 @@ import {
   AttributeNode,
   AttrSingleQuoted,
   AttrUnquoted,
+  CanvasArgument,
   CanvasBranch,
   CanvasBranchBaseCase,
+  CanvasBranchNamed,
+  CanvasBranchNode,
   CanvasBranchUnnamed,
   CanvasComparison,
   CanvasConditionalExpression,
   CanvasExpression,
   CanvasFilter,
   CanvasHtmlNode,
+  CanvasNamedArgument,
   CanvasNode,
   CanvasTag,
+  CanvasTagNamed,
   CanvasVariable,
   CanvasVariableOutput,
   DocumentNode,
   HtmlElement,
   HtmlVoidElement,
+  IncludeMarkup,
   NamedTags,
   NodeTypes,
   nonTraversableProperties,
@@ -83,6 +91,169 @@ export function toCanvasHtmlAST(
       end: source.length,
     },
   }
+}
+
+type ConcreteCloseNode = ConcreteCanvasTagClose | ConcreteHtmlTagClose
+
+export class ASTBuilder {
+  /** The AST is what we're building incrementally */
+  ast: CanvasHtmlNode[]
+
+  /**
+   * The cursor represents the path to the array we would push nodes to.
+   */
+  cursor: (string | number)[]
+
+  /** The source is the original string */
+  source: string
+
+  /**
+   * Create a new AST Builder instance.
+   * @param source The source code
+   */
+  constructor(source: string) {
+    this.ast = []
+    this.cursor = []
+    this.source = source
+  }
+
+  get current(): CanvasHtmlNode[] {
+    return deepGet<CanvasHtmlNode[]>(this.cursor, this.ast)
+  }
+
+  get currentPosition(): number {
+    return (this.current || []).length - 1
+  }
+
+  get parent(): ParentNode | undefined {
+    if (this.cursor.length == 0) return undefined
+    return deepGet<ParentNode>(dropLast(1, this.cursor), this.ast)
+  }
+
+  get grandparent(): ParentNode | undefined {
+    if (this.cursor.length < 4) return undefined
+    return deepGet<ParentNode>(dropLast(3, this.cursor), this.ast)
+  }
+
+  open(node: CanvasHtmlNode) {
+    this.current.push(node)
+    this.cursor.push(this.currentPosition)
+    this.cursor.push('children')
+
+    if (isBranchedTag(node)) {
+      this.open(toUnnamedCanvasBranch(node))
+    }
+  }
+
+  push(node: CanvasHtmlNode) {
+    if (node.type === NodeTypes.CanvasBranch) {
+      const previousBranch = this.findCloseableParentBranch(node)
+      if (previousBranch) {
+        previousBranch.blockEndPosition = { start: node.position.start, end: node.position.start }
+        // close dangling open HTML nodes
+        while (
+          this.parent &&
+          (this.parent as ParentNode) !== previousBranch &&
+          this.parent.type === NodeTypes.HtmlElement
+        ) {
+          // 0-length blockEndPosition at the position of the next branch
+          this.parent.blockEndPosition = { start: node.position.start, end: node.position.start }
+          this.closeParentWith(node)
+        }
+        // close the previous branch
+        this.closeParentWith(node)
+      }
+      this.open(node)
+    } else {
+      this.current.push(node)
+    }
+  }
+
+  close(node: ConcreteCloseNode, nodeType: NodeTypes.CanvasTag | NodeTypes.HtmlElement) {
+    if (isCanvasBranch(this.parent)) {
+      this.parent.blockEndPosition = { start: node.locStart, end: node.locStart }
+      this.closeParentWith(node)
+    }
+
+    if (!this.parent) {
+      throw new Error(`Attempting to close ${nodeType} '${getName(node)}' before it was opened`)
+    }
+
+    if (getName(this.parent) !== getName(node) || this.parent.type !== nodeType) {
+      const suitableParent = this.findCloseableParentNode(node)
+
+      if (this.parent.type === NodeTypes.HtmlElement && suitableParent) {
+        console.log(suitableParent)
+      } else {
+        throw new Error(
+          `Attempting to close ${nodeType} '${getName(node)} before ${this.parent.type} '${getName(this.parent)}' was closed`
+        )
+      }
+    }
+
+    // The parent end is the end of the outer tag.
+    this.parent.position.end = node.locEnd
+    this.parent.blockEndPosition = position(node)
+    if (this.parent.type == NodeTypes.CanvasTag && node.type == ConcreteNodeTypes.CanvasTagClose) {
+      this.parent.delimiterWhitespaceStart = node.whitespaceStart ?? ''
+      this.parent.delimiterWhitespaceEnd = node.whitespaceEnd ?? ''
+    }
+    this.cursor.pop()
+    this.cursor.pop()
+  }
+
+  findCloseableParentBranch(next: CanvasBranch): CanvasBranch | null {
+    for (let index = this.cursor.length - 1; index > 0; index -= 2) {
+      const parent = deepGet<ParentNode>(this.cursor.slice(0, index), this.ast)
+      const parentProperty = this.cursor[index] as string
+      const isUnclosedHtmlElement =
+        parent.type === NodeTypes.HtmlElement && parentProperty === 'children'
+      if (parent.type === NodeTypes.CanvasBranch) {
+        return parent
+      } else if (!isUnclosedHtmlElement) {
+        throw new Error(
+          `Attempting to open CanvasBranch '${next.name}' before ${parent.type} '${getName(
+            parent
+          )}' was closed`
+        )
+      }
+    }
+    return null
+  }
+
+  findCloseableParentNode(
+    current: ConcreteHtmlTagClose | ConcreteCanvasTagClose
+  ): CanvasTag | null {
+    for (let index = this.cursor.length - 1; index > 0; index -= 2) {
+      const parent = deepGet<ParentNode>(this.cursor.slice(0, index), this.ast)
+      if (
+        getName(parent) === getName(current) &&
+        parent.type === NodeTypes.CanvasTag &&
+        ['if'].includes(parent.name)
+      ) {
+        return parent
+      } else if (parent.type === NodeTypes.CanvasTag) {
+        return null
+      }
+    }
+    return null
+  }
+
+  closeParentWith(next: CanvasHtmlNode | ConcreteCloseNode) {
+    if (this.parent) {
+      if ('locStart' in next) {
+        this.parent.position.end = next.locStart
+      } else {
+        this.parent.position.end = next.position.start
+      }
+    }
+    this.cursor.pop()
+    this.cursor.pop()
+  }
+}
+
+function isCanvasBranch(node: CanvasHtmlNode | undefined): node is CanvasBranchNode<any, any> {
+  return !!node && node.type === NodeTypes.CanvasBranch
 }
 
 export function getName(
@@ -296,6 +467,21 @@ function canvasTagBaseAttributes(
   }
 }
 
+function canvasBranchBaseAttributes(
+  node: ConcreteCanvasTag
+): Omit<CanvasBranch, 'name' | 'markup'> {
+  return {
+    type: NodeTypes.CanvasBranch,
+    children: [],
+    position: position(node),
+    whitespaceStart: node.whitespaceStart ?? '',
+    whitespaceEnd: node.whitespaceEnd ?? '',
+    blockStartPosition: position(node),
+    blockEndPosition: { start: -1, end: -1 },
+    source: node.source,
+  }
+}
+
 function toCanvasTag(
   node: ConcreteCanvasTag | ConcreteCanvasTagOpen,
   options: ASTBuildOptions & { isBlockTag: boolean }
@@ -306,7 +492,12 @@ function toCanvasTag(
     // `elseif`, `else`, but with unparsable markup.
     return toNamedCanvasBranchBaseCase(node)
   } else if (options.isBlockTag) {
-    console.log('isBlockTag')
+    return {
+      name: node.name,
+      markup: markup(node.name, node.markup),
+      children: options.isBlockTag ? [] : undefined,
+      ...canvasTagBaseAttributes(node),
+    }
   }
 
   return {
@@ -319,7 +510,7 @@ function toCanvasTag(
 function toNamedCanvasTag(
   node: ConcreteCanvasTagNamed | ConcreteCanvasTagOpenNamed,
   options: ASTBuildOptions
-) {
+): CanvasTagNamed | CanvasBranchNamed {
   switch (node.name) {
     case NamedTags.do: {
       return {
@@ -330,7 +521,11 @@ function toNamedCanvasTag(
     }
 
     case NamedTags.include: {
-      return {}
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toIncludeMarkup(node.markup),
+      }
     }
 
     case NamedTags.if: {
@@ -344,7 +539,11 @@ function toNamedCanvasTag(
     }
 
     case NamedTags.elseif: {
-      return {}
+      return {
+        ...canvasBranchBaseAttributes(node),
+        name: node.name,
+        markup: toConditionalExpression(node.markup),
+      }
     }
 
     default: {
@@ -383,9 +582,31 @@ export function toUnnamedCanvasBranch(parentNode: CanvasHtmlNode): CanvasBranchU
   }
 }
 
+function toIncludeMarkup(node: ConcreteCanvasTagIncludeMarkup): IncludeMarkup {
+  return {
+    type: NodeTypes.IncludeMarkup,
+    position: position(node),
+    source: node.source,
+  }
+}
+
 function toConditionalExpression(nodes: ConcreteCanvasCondition[]): CanvasConditionalExpression {
   if (nodes.length === 1) {
     return toComparisonOrExpression(nodes[0])
+  }
+
+  const [first, second] = nodes
+  const [, ...rest] = nodes
+  return {
+    type: NodeTypes.LogicalExpression,
+    relation: second.relation as 'and' | 'or',
+    left: toComparisonOrExpression(first),
+    right: toConditionalExpression(rest),
+    position: {
+      start: first.locStart,
+      end: nodes[nodes.length - 1].locEnd,
+    },
+    source: first.source,
   }
 }
 
@@ -404,6 +625,11 @@ function toComparisonOrExpression(
 function toComparison(node: ConcreteCanvasComparison): CanvasComparison {
   return {
     type: NodeTypes.Comparison,
+    comparator: node.comparator,
+    left: toExpression(node.left),
+    right: toExpression(node.right),
+    position: position(node),
+    source: node.source,
   }
 }
 
@@ -471,6 +697,27 @@ function toFilter(node: ConcreteCanvasFilter): CanvasFilter {
     type: NodeTypes.CanvasFilter,
     name: node.name,
     args: node.args.map(toCanvasArgument),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toCanvasArgument(node: ConcreteCanvasArgument): CanvasArgument {
+  switch (node.type) {
+    case ConcreteNodeTypes.NamedArgument: {
+      return toNamedArgument(node)
+    }
+    default: {
+      return toExpression(node)
+    }
+  }
+}
+
+function toNamedArgument(node: ConcreteCanvasNamedArgument): CanvasNamedArgument {
+  return {
+    type: NodeTypes.NamedArgument,
+    name: node.name,
+    value: toExpression(node.value),
     position: position(node),
     source: node.source,
   }

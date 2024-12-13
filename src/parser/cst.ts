@@ -31,6 +31,8 @@ export enum ConcreteNodeTypes {
   Number = 'Number',
   Comparison = 'Comparison',
   Condition = 'Condition',
+
+  IncludeMarkup = 'IncludeMarkup',
 }
 
 export interface ConcreteBasicNode<T> {
@@ -160,7 +162,8 @@ export interface ConcreteCanvasTagDo
 export interface ConcreteCanvasTagInclude
   extends ConcreteCanvasTagNode<NamedTags.include, ConcreteCanvasTagIncludeMarkup> {}
 
-export interface ConcreteCanvasTagIncludeMarkup {}
+export interface ConcreteCanvasTagIncludeMarkup
+  extends ConcreteBasicNode<ConcreteNodeTypes.IncludeMarkup> {}
 
 export interface ConcreteCanvasVariableOutput
   extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasVariableOutput> {
@@ -316,6 +319,7 @@ function toCST<T>(
       source,
     },
 
+    canvasTagOpenBlock: 0,
     canvasTagOpenIf: 0,
     canvasTagElse: 0,
     canvasTagOpenConditionalMarkup: 0,
@@ -345,6 +349,7 @@ function toCST<T>(
     canvasTagStrict: 0,
     canvasTagBaseCase: 0,
     canvasTagDo: 0,
+    canvasTagExtends: 0,
     canvasTagRule: {
       type: ConcreteNodeTypes.CanvasTag,
       name: 3,

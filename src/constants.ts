@@ -3,13 +3,13 @@ import htmlStyles from 'html-styles'
 const getCssStyleTags = (property: string) =>
   Object.fromEntries(
     htmlStyles
-      .filter((htmlStyle: any) => htmlStyle.style[property])
-      .flatMap((htmlStyle: any) =>
+      .filter((htmlStyle) => htmlStyle.style[property])
+      .flatMap((htmlStyle) =>
         htmlStyle.selectorText
           .split(',')
-          .map((selector: any) => selector.trim())
-          .filter((selector: any) => /^[\dA-Za-z]+$/.test(selector))
-          .map((tagName: any) => [tagName, htmlStyle.style[property]])
+          .map((selector) => selector.trim())
+          .filter((selector) => /^[\dA-Za-z]+$/.test(selector))
+          .map((tagName) => [tagName, htmlStyle.style[property]])
       )
   )
 

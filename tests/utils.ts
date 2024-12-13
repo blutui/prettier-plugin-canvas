@@ -1,12 +1,11 @@
 import * as prettier from 'prettier'
-
-import plugin from '@/plugin'
+import * as CanvasPlugin from '../src/index'
 
 export async function format(str: string, options: prettier.Options = {}) {
   return await prettier.format(str, {
     ...options,
     parser: 'canvas',
-    plugins: [...(options.plugins ?? []), plugin],
+    plugins: [...(options.plugins ?? []), CanvasPlugin] as any,
   })
 }
 

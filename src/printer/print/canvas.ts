@@ -21,6 +21,7 @@ import {
   hasMeaningfulLackOfLeadingWhitespace,
   hasMeaningfulLackOfTrailingWhitespace,
   isAttributeNode,
+  isDeeplyNested,
   isEmpty,
   last,
   markupLines,
@@ -34,6 +35,7 @@ const CANVAS_TAGS_THAT_ALWAYS_BREAK = ['for']
 
 const { builders, utils } = doc
 const { group, ifBreak, indent, line, softline, literalline } = builders
+const { replaceEndOfLine } = doc.utils as any
 
 export function printCanvasVariableOutput(
   path: CanvasAstPath,
@@ -284,7 +286,14 @@ export function printCanvasTag(
       )
     )
   } else if (node.children.length > 0) {
-    body = indent([innerLeadingWhitespace(node)])
+    body = indent([
+      innerLeadingWhitespace(node),
+      printChildren(path, options, print, {
+        ...args,
+        leadingSpaceGroupId: tagGroupId,
+        trailingSpaceGroupId: tagGroupId,
+      }),
+    ])
   }
 
   return group([blockStart, body, innerTrailingWhitespace(node, args), blockEnd], {

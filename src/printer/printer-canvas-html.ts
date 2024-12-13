@@ -24,6 +24,7 @@ import type {
 import { getConditionalComment, NodeTypes, Position } from '@/parser'
 import { assertNever } from '@/utils'
 
+import { embed } from './embed'
 import { preprocess } from './print-preprocess'
 import { printCanvasBranch, printCanvasTag, printCanvasVariableOutput } from './print/canvas'
 import { printChildren } from './print/children'

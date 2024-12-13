@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { format, heredoc } from '../utils'
+import { format, heredoc } from 'tests/utils'
 
 describe('HTML Comments', () => {
   test('it should handle the css display of the next node', async () => {

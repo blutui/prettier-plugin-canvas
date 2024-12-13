@@ -1,13 +1,5 @@
-import { canvasHtmlLanguageName, canvasHtmlAstFormat, canvasHtmlParser } from './parser'
-
 export * from './ast'
 export * from './types'
-
-export { canvasHtmlLanguageName, canvasHtmlAstFormat }
-
-export const parsers = {
-  [canvasHtmlLanguageName]: canvasHtmlParser,
-}
 
 const commentRegex = /(<!--\[if[^\]]*]>)((.|\n)*)(<!\[endif\]-->)$/
 

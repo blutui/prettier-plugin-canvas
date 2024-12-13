@@ -311,6 +311,8 @@ export interface AttrEmpty extends ASTNode<NodeTypes.AttrEmpty> {
   name: (TextNode | CanvasVariableOutput)[]
 }
 
+export type ValueNode = TextNode | CanvasNode
+
 export interface AttributeNodeBase<T> extends ASTNode<T> {
   name: (TextNode | CanvasVariableOutput)[]
 

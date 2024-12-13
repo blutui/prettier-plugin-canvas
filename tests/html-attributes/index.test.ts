@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { format, heredoc } from '../utils'
+import { format, heredoc } from 'tests/utils'
 
 describe('HTML Attributes', () => {
   test('it should use double quotes for all attributes, unless boolean attribute', async () => {

@@ -1,5 +1,9 @@
 import { Doc, doc } from 'prettier'
 
+import { isBranchedTag } from '@/parser'
+import type { CanvasBranch, CanvasHtmlNode } from '@/types'
+import { isEmpty } from './array'
+
 export * from './array'
 export * from './string'
 export * from './node'
@@ -7,6 +11,16 @@ export * from './node'
 const {
   builders: { ifBreak },
 } = doc
+
+export function isDeeplyNested(
+  node: Extract<CanvasHtmlNode, { children?: CanvasHtmlNode[] }>
+): boolean {
+  if (!node.children) return false
+  if (isBranchedTag(node)) {
+    return !!node.children.find((child) => isDeeplyNested(child as CanvasBranch))
+  }
+  return !!node.children.find((child) => !isEmpty((child as any).children || []))
+}
 
 // Optionally converts a '' into '-' if any of the parent group breaks and source[loc] is non space.
 export function getWhitespaceTrim(
