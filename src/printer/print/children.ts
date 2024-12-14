@@ -30,7 +30,7 @@ import {
 import { NodeTypes } from '@/parser'
 
 const {
-  builders: { group, ifBreak, line, softline, hardline },
+  builders: { breakParent, group, ifBreak, line, softline, hardline },
 } = doc
 
 function printChild(
@@ -128,7 +128,23 @@ export function printChildren(
   }
 
   if (forceBreakChildren(node)) {
-    console.log('force break children')
+    return [
+      breakParent,
+      ...path.map((childPath) => {
+        const childNode = childPath.node
+        const prevBetweenLine = printBetweenLine(childNode.prev, childNode)
+        return [
+          !prevBetweenLine
+            ? ''
+            : [prevBetweenLine, forceNextEmptyLine(childNode.prev) ? hardline : ''],
+          printChild(childPath, options, print, {
+            ...args,
+            leadingSpaceGroupId: FORCE_BREAK_GROUP_ID,
+            trailingSpaceGroupId: FORCE_BREAK_GROUP_ID,
+          }),
+        ]
+      }, 'children'),
+    ]
   }
 
   const leadingSpaceGroupIds = node.children.map((_, i) => Symbol(`leading-${i}`))
