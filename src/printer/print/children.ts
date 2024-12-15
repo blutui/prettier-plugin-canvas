@@ -204,7 +204,7 @@ export function printChildren(
           if (isTextLikeNode(childNode.next)) {
             trailingHardlines.push(hardline)
           }
-          // there's a hole here, it's intentional.
+          // there's a hole here, it's intentional!
         } else {
           // We know it's not a typeof hardline here because we do the
           // check on the previous condition.

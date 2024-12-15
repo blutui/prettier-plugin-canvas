@@ -29,6 +29,7 @@ export enum ConcreteNodeTypes {
   VariableLookup = 'VariableLookup',
   String = 'String',
   Number = 'Number',
+  Function = 'Function',
   Comparison = 'Comparison',
   Condition = 'Condition',
 
@@ -193,6 +194,7 @@ export interface ConcreteCanvasNamedArgument
 export type ConcreteCanvasExpression =
   | ConcreteStringLiteral
   | ConcreteNumberLiteral
+  | ConcreteCanvasFunction
   | ConcreteCanvasVariableLookup
 
 export interface ConcreteStringLiteral extends ConcreteBasicNode<ConcreteNodeTypes.String> {
@@ -202,6 +204,11 @@ export interface ConcreteStringLiteral extends ConcreteBasicNode<ConcreteNodeTyp
 
 export interface ConcreteNumberLiteral extends ConcreteBasicNode<ConcreteNodeTypes.Number> {
   value: string // float parsing is weird but supported
+}
+
+export interface ConcreteCanvasFunction extends ConcreteBasicNode<ConcreteNodeTypes.Function> {
+  name: string
+  args: ConcreteCanvasArgument[]
 }
 
 export interface ConcreteCanvasVariableLookup
@@ -282,7 +289,7 @@ function toCST<T>(
 
   const res = grammar.match(matchingSource, 'Node')
   if (res.failed()) {
-    console.error('failed to match')
+    throw new SyntaxError(res.shortMessage)
   }
 
   const HelperMappings: Mapping = {
@@ -292,6 +299,23 @@ function toCST<T>(
 
     listOf: 0,
     empty: () => null,
+    emptyListOf: () => [],
+    nonemptyListOf(first: any, _sep: any, rest: any) {
+      const self = this as any
+      return [first.toAST(self.args.mapping)].concat(rest.toAST(self.args.mapping))
+    },
+
+    nonemptyOrderedListOf: 0,
+    nonemptyOrderedListOfBoth(
+      nonemptyListOfA: ohm.Node,
+      _sep: ohm.Node,
+      nonemptyListOfB: ohm.Node
+    ) {
+      const self = this as any
+      return nonemptyListOfA
+        .toAST(self.args.mapping)
+        .concat(nonemptyListOfB.toAST(self.args.mapping))
+    },
   }
 
   const CanvasMappings: Mapping = {
@@ -320,6 +344,7 @@ function toCST<T>(
     },
 
     canvasTagOpenBlock: 0,
+    canvasTagOpenFor: 0,
     canvasTagOpenIf: 0,
     canvasTagElse: 0,
     canvasTagOpenConditionalMarkup: 0,
@@ -333,6 +358,12 @@ function toCST<T>(
     },
     comparison: {
       type: ConcreteNodeTypes.Comparison,
+      comparator: 2,
+      left: 0,
+      right: 4,
+      locStart,
+      locEnd,
+      source,
     },
 
     canvasTagClose: {
@@ -399,16 +430,57 @@ function toCST<T>(
     canvasFilter: {
       type: ConcreteNodeTypes.CanvasFilter,
       name: 3,
+      args(nodes: ohm.Node[]) {
+        if (nodes[7].sourceString === '') {
+          return []
+        } else {
+          return nodes[7].toAST((this as any).args.mapping)
+        }
+      },
+      locStart,
+      locEnd,
+      source,
+    },
+    arguments: 0,
+    tagArgument: 0,
+    positionalArgument: 0,
+
+    canvasString: 0,
+    canvasDoubleQuotedString: {
+      type: ConcreteNodeTypes.String,
+      single: () => false,
+      value: 1,
+      locStart,
+      locEnd,
+      source,
+    },
+    canvasSingleQuotedString: {
+      type: ConcreteNodeTypes.String,
+      single: () => true,
+      value: 1,
       locStart,
       locEnd,
       source,
     },
 
-    canvasString: 0,
-
     canvasNumber: {
       type: ConcreteNodeTypes.Number,
       value: 0,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    canvasFunction: {
+      type: ConcreteNodeTypes.Function,
+      name: 0,
+      args(nodes: ohm.Node[]) {
+        if (nodes[4].sourceString === '') {
+          return []
+        } else {
+          return nodes[4].toAST((this as any).args.mapping)
+        }
+      },
       locStart,
       locEnd,
       source,

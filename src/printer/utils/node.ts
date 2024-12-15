@@ -280,7 +280,18 @@ function hasLeadingLineBreak(node: CanvasHtmlNode) {
 function hasTrailingLineBreak(node: CanvasHtmlNode) {
   if (node.type === NodeTypes.Document) return false
 
-  console.log('hasTrailingLineBreak')
+  return (
+    node.hasTrailingWhitespace &&
+    hasLineBreakInRange(
+      node.source,
+      node.position.end,
+      node.next
+        ? node.next.position.start
+        : (node.parentNode as any).blockEndPosition
+          ? (node.parentNode as any).blockEndPosition.start
+          : (node.parentNode as any).position.end
+    )
+  )
 }
 
 function hasLineBreakInRange(source: string, start: number, end: number) {

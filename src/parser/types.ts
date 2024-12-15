@@ -22,6 +22,7 @@ export enum NodeTypes {
   NamedArgument = 'NamedArgument',
   String = 'String',
   Number = 'Number',
+  Function = 'Function',
   VariableLookup = 'VariableLookup',
   Comparison = 'Comparison',
   LogicalExpression = 'LogicalExpression',
@@ -47,6 +48,7 @@ export type CanvasHtmlNode =
   | CanvasNamedArgument
   | RawMarkup
   | CanvasLogicalExpression
+  | CanvasComparison
   | TextNode
 
 /** The root node of all CanvasHTML ASTs */
@@ -196,7 +198,7 @@ export interface CanvasVariable extends ASTNode<NodeTypes.CanvasVariable> {
   rawSource: string
 }
 
-export type CanvasExpression = CanvasString | CanvasNumber | CanvasVariableLookup
+export type CanvasExpression = CanvasString | CanvasNumber | CanvasFunction | CanvasVariableLookup
 
 export interface CanvasFilter extends ASTNode<NodeTypes.CanvasFilter> {
   name: string
@@ -221,6 +223,12 @@ export interface CanvasString extends ASTNode<NodeTypes.String> {
 export interface CanvasNumber extends ASTNode<NodeTypes.Number> {
   /** as a string for compatibility with numbers like 100_000 */
   value: string
+}
+
+export interface CanvasFunction extends ASTNode<NodeTypes.Function> {
+  name: string
+
+  args: CanvasArgument[]
 }
 
 export interface CanvasVariableLookup extends ASTNode<NodeTypes.VariableLookup> {
@@ -343,7 +351,9 @@ export interface ASTBuildOptions {
   mode: 'strict' | 'tolerant' | 'completion'
 }
 
-export enum Comparators {}
+export enum Comparators {
+  EQUAL = '==',
+}
 
 export enum NamedTags {
   do = 'do',

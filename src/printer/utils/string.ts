@@ -6,6 +6,7 @@ export function isWhitespace(source: string, loc: number): boolean {
   return !!source[loc].match(/\s/)
 }
 
+export const trim = (x: string) => x.trim()
 export const trimEnd = (x: string) => x.trimEnd()
 
 export function bodyLines(str: string): string[] {

@@ -24,12 +24,11 @@ import type {
 import { getConditionalComment, NodeTypes, Position } from '@/parser'
 import { assertNever } from '@/utils'
 
-import { embed } from './embed'
 import { preprocess } from './print-preprocess'
 import { printCanvasBranch, printCanvasTag, printCanvasVariableOutput } from './print/canvas'
 import { printChildren } from './print/children'
 import { printElement } from './print/element'
-import { bodyLines, hasLineBreakInRange, isTextLikeNode, reindent } from './utils'
+import { bodyLines, hasLineBreakInRange, isEmpty, isTextLikeNode, reindent } from './utils'
 import { printClosingTagSuffix, printOpeningTagPrefix } from './print/tag'
 
 const { builders, utils } = doc
@@ -237,6 +236,13 @@ function printNode(
       return ''
     }
 
+    case NodeTypes.Comparison: {
+      return group([
+        path.call((p: any) => print(p), 'left'),
+        indent([line, node.comparator, ' ', path.call((p: any) => print(p), 'right')]),
+      ])
+    }
+
     case NodeTypes.CanvasVariable: {
       const name = path.call((p: any) => print(p), 'expression')
       let filters: Doc = ''
@@ -268,8 +274,11 @@ function printNode(
     }
 
     case NodeTypes.String: {
-      console.log('print:', NodeTypes.String)
-      return ''
+      const preferredQuote = options.canvasSingleQuote ? `'` : `"`
+      const valueHasQuotes = node.value.includes(preferredQuote)
+      const quote = valueHasQuotes ? oppositeQuotes[preferredQuote] : preferredQuote
+
+      return [quote, node.value, quote]
     }
 
     case NodeTypes.Number: {
@@ -278,6 +287,25 @@ function printNode(
       } else {
         return node.value
       }
+    }
+
+    case NodeTypes.Function: {
+      let args: Doc[] = []
+
+      if (node.args.length > 0) {
+        const printed = path.map((p) => print(p), 'args')
+        const shouldPrintFirstArgumentSameLine = node.args[0].type !== NodeTypes.NamedArgument
+
+        if (shouldPrintFirstArgumentSameLine) {
+          const [firstDoc, ...rest] = printed
+          const restDoc = isEmpty(rest) ? '' : indent([])
+          args = [firstDoc, restDoc]
+        } else {
+          args = []
+        }
+      }
+
+      return group([node.name, '(', ...args, ')'])
     }
 
     case NodeTypes.VariableLookup: {

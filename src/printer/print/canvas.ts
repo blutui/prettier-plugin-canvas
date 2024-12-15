@@ -27,6 +27,7 @@ import {
   markupLines,
   originallyHadLineBreaks,
   shouldPreserveContent,
+  trim,
 } from '../utils'
 import { assertNever } from '@/utils'
 import { printChildren } from './children'
@@ -34,7 +35,7 @@ import { printChildren } from './children'
 const CANVAS_TAGS_THAT_ALWAYS_BREAK = ['for']
 
 const { builders, utils } = doc
-const { group, ifBreak, indent, line, softline, literalline } = builders
+const { group, hardline, ifBreak, indent, join, line, softline, literalline } = builders
 const { replaceEndOfLine } = doc.utils as any
 
 export function printCanvasVariableOutput(
@@ -70,7 +71,14 @@ export function printCanvasVariableOutput(
 
   const lines = markupLines(node.markup)
   if (lines.length > 1) {
-    console.log('lines:', lines)
+    return group([
+      '{{',
+      whitespaceStart,
+      indent([hardline, join(hardline, lines.map(trim))]),
+      hardline,
+      whitespaceEnd,
+      '}}',
+    ])
   }
 
   return group(['{{', whitespaceStart, ' ', node.markup, ' ', whitespaceEnd, '}}'])

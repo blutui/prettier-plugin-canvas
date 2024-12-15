@@ -353,7 +353,7 @@ function buildAst(
 
       case ConcreteNodeTypes.HtmlTagClose: {
         if (isAcceptableDanglingMarkerClose(builder, cst as CanvasHtmlCST, i)) {
-          console.log('push: DanglingMarker')
+          builder.push(toHtmlDanglingMarkerClose(node, options))
         } else {
           builder.close(node, NodeTypes.HtmlElement)
         }
@@ -672,6 +672,16 @@ function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
         type: NodeTypes.Number,
         position: position(node),
         value: node.value,
+        source: node.source,
+      }
+    }
+
+    case ConcreteNodeTypes.Function: {
+      return {
+        type: NodeTypes.Function,
+        name: node.name,
+        args: node.args.map(toCanvasArgument),
+        position: position(node),
         source: node.source,
       }
     }
