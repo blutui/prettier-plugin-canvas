@@ -32,7 +32,7 @@ import { bodyLines, hasLineBreakInRange, isEmpty, isTextLikeNode, reindent } fro
 import { printClosingTagSuffix, printOpeningTagPrefix } from './print/tag'
 
 const { builders, utils } = doc
-const { fill, group, hardline, indent, join, line, softline } = builders
+const { align, fill, group, hardline, indent, join, line, softline } = builders
 
 const oppositeQuotes = {
   '"': "'",
@@ -231,6 +231,10 @@ function printNode(
       ]
     }
 
+    case NodeTypes.SetMarkup: {
+      return [node.name, ' = ', path.call((p: any) => print(p), 'value')]
+    }
+
     case NodeTypes.LogicalExpression: {
       console.log('print:', NodeTypes.LogicalExpression)
       return ''
@@ -260,13 +264,27 @@ function printNode(
     }
 
     case NodeTypes.CanvasFilter: {
-      console.log('print:', NodeTypes.CanvasFilter)
-      return ''
+      let args: Doc[] = []
+
+      if (node.args.length > 0) {
+        const printed = path.map((p) => print(p), 'args')
+
+        args = [
+          '(',
+          indent(align(2, [softline, join([',', line], printed)])),
+          align(2, [softline, ')']),
+        ]
+      }
+
+      return group(['| ', node.name, ...args])
     }
 
     case NodeTypes.NamedArgument: {
-      console.log('print:', NodeTypes.NamedArgument)
-      return ''
+      return [
+        path.call((p: any) => print(p), 'name'),
+        ': ',
+        path.call((p: any) => print(p), 'value'),
+      ]
     }
 
     case NodeTypes.TextNode: {
@@ -306,6 +324,25 @@ function printNode(
       }
 
       return group([node.name, '(', ...args, ')'])
+    }
+
+    case NodeTypes.ArrowFunction: {
+      let args: Doc[] = []
+
+      if (node.args.length > 0) {
+        const printed = path.map((p) => print(p), 'args')
+        const shouldPrintFirstArgumentSameLine = node.args[0].type !== NodeTypes.NamedArgument
+
+        if (shouldPrintFirstArgumentSameLine) {
+          const [firstDoc, ...rest] = printed
+          const restDoc = isEmpty(rest) ? '' : indent([',', line, join([',', line], rest)])
+          args = [firstDoc, restDoc]
+        } else {
+          args = []
+        }
+      }
+
+      return group(['(', ...args, ') => ', path.call((p: any) => print(p), 'expression')])
     }
 
     case NodeTypes.VariableLookup: {

@@ -2,7 +2,12 @@ import * as prettier from 'prettier'
 import * as CanvasPlugin from '../src/index'
 
 export async function format(str: string, options: prettier.Options = {}) {
+  const defaultOptions: prettier.Options = {
+    printWidth: 80,
+  }
+
   return await prettier.format(str, {
+    ...defaultOptions,
     ...options,
     parser: 'canvas',
     plugins: [...(options.plugins ?? []), CanvasPlugin] as any,

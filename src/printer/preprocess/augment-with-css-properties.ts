@@ -102,7 +102,9 @@ function getCssDisplay(node: AugmentedNode<WithSiblings>, options: CanvasParserO
     case NodeTypes.String:
     case NodeTypes.Number:
     case NodeTypes.Function:
+    case NodeTypes.ArrowFunction:
     case NodeTypes.VariableLookup:
+    case NodeTypes.SetMarkup:
     case NodeTypes.LogicalExpression:
     case NodeTypes.Comparison:
       return 'should not be relevant'
@@ -174,7 +176,9 @@ function getNodeCssStyleWhiteSpace(
     case NodeTypes.String:
     case NodeTypes.Number:
     case NodeTypes.Function:
+    case NodeTypes.ArrowFunction:
     case NodeTypes.VariableLookup:
+    case NodeTypes.SetMarkup:
     case NodeTypes.LogicalExpression:
     case NodeTypes.Comparison:
       return 'should not be relevant'

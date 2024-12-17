@@ -30,10 +30,12 @@ export enum ConcreteNodeTypes {
   String = 'String',
   Number = 'Number',
   Function = 'Function',
+  ArrowFunction = 'ArrowFunction',
   Comparison = 'Comparison',
   Condition = 'Condition',
 
   IncludeMarkup = 'IncludeMarkup',
+  SetMarkup = 'SetMarkup',
 }
 
 export interface ConcreteBasicNode<T> {
@@ -148,6 +150,7 @@ export type ConcreteCanvasTagNamed =
   | ConcreteCanvasTagDo
   | ConcreteCanvasTagElseIf
   | ConcreteCanvasTagInclude
+  | ConcreteCanvasTagSet
 
 export interface ConcreteCanvasTagNode<Name, Markup>
   extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasTag> {
@@ -165,6 +168,14 @@ export interface ConcreteCanvasTagInclude
 
 export interface ConcreteCanvasTagIncludeMarkup
   extends ConcreteBasicNode<ConcreteNodeTypes.IncludeMarkup> {}
+
+export interface ConcreteCanvasTagSet
+  extends ConcreteCanvasTagNode<NamedTags.set, ConcreteCanvasTagSetMarkup> {}
+
+export interface ConcreteCanvasTagSetMarkup extends ConcreteBasicNode<ConcreteNodeTypes.SetMarkup> {
+  name: string
+  value: ConcreteCanvasVariable
+}
 
 export interface ConcreteCanvasVariableOutput
   extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasVariableOutput> {
@@ -187,14 +198,16 @@ export type ConcreteCanvasArgument = ConcreteCanvasExpression | ConcreteCanvasNa
 
 export interface ConcreteCanvasNamedArgument
   extends ConcreteBasicNode<ConcreteNodeTypes.NamedArgument> {
-  name: string
+  name: ConcreteCanvasExpression
   value: ConcreteCanvasExpression
 }
 
 export type ConcreteCanvasExpression =
   | ConcreteStringLiteral
   | ConcreteNumberLiteral
+  | ConcreteCanvasComparison
   | ConcreteCanvasFunction
+  | ConcreteCanvasArrowFunction
   | ConcreteCanvasVariableLookup
 
 export interface ConcreteStringLiteral extends ConcreteBasicNode<ConcreteNodeTypes.String> {
@@ -209,6 +222,12 @@ export interface ConcreteNumberLiteral extends ConcreteBasicNode<ConcreteNodeTyp
 export interface ConcreteCanvasFunction extends ConcreteBasicNode<ConcreteNodeTypes.Function> {
   name: string
   args: ConcreteCanvasArgument[]
+}
+
+export interface ConcreteCanvasArrowFunction
+  extends ConcreteBasicNode<ConcreteNodeTypes.ArrowFunction> {
+  args: ConcreteCanvasArgument[]
+  expression: ConcreteCanvasExpression
 }
 
 export interface ConcreteCanvasVariableLookup
@@ -346,7 +365,6 @@ function toCST<T>(
     canvasTagOpenBlock: 0,
     canvasTagOpenFor: 0,
     canvasTagOpenIf: 0,
-    canvasTagElse: 0,
     canvasTagOpenConditionalMarkup: 0,
     condition: {
       type: ConcreteNodeTypes.Condition,
@@ -381,6 +399,9 @@ function toCST<T>(
     canvasTagBaseCase: 0,
     canvasTagDo: 0,
     canvasTagExtends: 0,
+    canvasTagElse: 0,
+    canvasTagInclude: 0,
+    canvasTagSet: 0,
     canvasTagRule: {
       type: ConcreteNodeTypes.CanvasTag,
       name: 3,
@@ -400,6 +421,14 @@ function toCST<T>(
     },
 
     canvasTagDoMarkup: 0,
+    canvasTagSetMarkup: {
+      type: ConcreteNodeTypes.SetMarkup,
+      name: 0,
+      value: 4,
+      locStart,
+      locEnd,
+      source,
+    },
 
     canvasDrop: {
       type: ConcreteNodeTypes.CanvasVariableOutput,
@@ -444,6 +473,14 @@ function toCST<T>(
     arguments: 0,
     tagArgument: 0,
     positionalArgument: 0,
+    namedArgument: {
+      type: ConcreteNodeTypes.NamedArgument,
+      name: 0,
+      value: 4,
+      locStart,
+      locEnd,
+      source,
+    },
 
     canvasString: 0,
     canvasDoubleQuotedString: {
@@ -471,6 +508,8 @@ function toCST<T>(
       source,
     },
 
+    canvasComparison: 0,
+
     canvasFunction: {
       type: ConcreteNodeTypes.Function,
       name: 0,
@@ -486,10 +525,34 @@ function toCST<T>(
       source,
     },
 
+    canvasArrowFunction: {
+      type: ConcreteNodeTypes.ArrowFunction,
+      args(nodes: ohm.Node[]) {
+        if (nodes[2].sourceString === '') {
+          return []
+        } else {
+          return nodes[2].toAST((this as any).args.mapping)
+        }
+      },
+      expression: 8,
+      locStart,
+      locEnd,
+      source,
+    },
+    arrowFunctionArgumentList: 0,
+
     canvasVariableLookup: {
       type: ConcreteNodeTypes.VariableLookup,
       name: 0,
       lookups: 1,
+      locStart,
+      locEnd,
+      source,
+    },
+    variableSegmentAsLookup: {
+      type: ConcreteNodeTypes.VariableLookup,
+      name: 0,
+      lookups: () => [],
       locStart,
       locEnd,
       source,

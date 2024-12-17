@@ -23,12 +23,14 @@ export enum NodeTypes {
   String = 'String',
   Number = 'Number',
   Function = 'Function',
+  ArrowFunction = 'ArrowFunction',
   VariableLookup = 'VariableLookup',
   Comparison = 'Comparison',
   LogicalExpression = 'LogicalExpression',
 
   RawMarkup = 'RawMarkup',
   IncludeMarkup = 'IncludeMarkup',
+  SetMarkup = 'SetMarkup',
 }
 
 export interface Position {
@@ -47,6 +49,7 @@ export type CanvasHtmlNode =
   | CanvasFilter
   | CanvasNamedArgument
   | RawMarkup
+  | SetMarkup
   | CanvasLogicalExpression
   | CanvasComparison
   | TextNode
@@ -104,7 +107,7 @@ export interface CanvasRawTag extends ASTNode<NodeTypes.CanvasRawTag> {
 
 export type CanvasTag = CanvasTagNamed | CanvasTagBaseCase
 
-export type CanvasTagNamed = CanvasTagDo | CanvasTagIf | CanvasTagInclude
+export type CanvasTagNamed = CanvasTagDo | CanvasTagIf | CanvasTagInclude | CanvasTagSet
 
 export interface CanvasTagNode<Name, Markup> extends ASTNode<NodeTypes.CanvasTag> {
   /** eg. if, for, etc. */
@@ -160,6 +163,17 @@ export interface CanvasTagInclude extends CanvasTagNode<NamedTags.include, Inclu
 
 export interface IncludeMarkup extends ASTNode<NodeTypes.IncludeMarkup> {}
 
+export interface CanvasTagSet extends CanvasTagNode<NamedTags.set, SetMarkup> {}
+
+/** {% set name = value %} */
+export interface SetMarkup extends ASTNode<NodeTypes.SetMarkup> {
+  /** the name of the variable that is being set */
+  name: string
+
+  /** the value of the variable that is being set */
+  value: CanvasVariable
+}
+
 export type CanvasBranch = CanvasBranchUnnamed | CanvasBranchBaseCase | CanvasBranchNamed
 
 export type CanvasBranchNamed = CanvasBranchElseif
@@ -198,7 +212,13 @@ export interface CanvasVariable extends ASTNode<NodeTypes.CanvasVariable> {
   rawSource: string
 }
 
-export type CanvasExpression = CanvasString | CanvasNumber | CanvasFunction | CanvasVariableLookup
+export type CanvasExpression =
+  | CanvasString
+  | CanvasNumber
+  | CanvasComparison
+  | CanvasFunction
+  | CanvasArrowFunction
+  | CanvasVariableLookup
 
 export interface CanvasFilter extends ASTNode<NodeTypes.CanvasFilter> {
   name: string
@@ -209,7 +229,7 @@ export interface CanvasFilter extends ASTNode<NodeTypes.CanvasFilter> {
 export type CanvasArgument = CanvasExpression | CanvasNamedArgument
 
 export interface CanvasNamedArgument extends ASTNode<NodeTypes.NamedArgument> {
-  name: string
+  name: CanvasExpression
 
   value: CanvasExpression
 }
@@ -229,6 +249,12 @@ export interface CanvasFunction extends ASTNode<NodeTypes.Function> {
   name: string
 
   args: CanvasArgument[]
+}
+
+export interface CanvasArrowFunction extends ASTNode<NodeTypes.ArrowFunction> {
+  args: CanvasArgument[]
+
+  expression: CanvasExpression
 }
 
 export interface CanvasVariableLookup extends ASTNode<NodeTypes.VariableLookup> {
@@ -360,6 +386,7 @@ export enum NamedTags {
   elseif = 'elseif',
   if = 'if',
   include = 'include',
+  set = 'set',
 }
 
 export const HtmlNodeTypes = [

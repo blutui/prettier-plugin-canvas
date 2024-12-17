@@ -133,6 +133,11 @@ function printNamedCanvasBlockStart(
       return ''
     }
 
+    case NamedTags.set: {
+      const trailingWhitespace = node.markup.value.filters.length > 0 ? line : ' '
+      return tag(trailingWhitespace)
+    }
+
     case NamedTags.if:
     case NamedTags.elseif: {
       const trailingWhitespace = [NodeTypes.Comparison, NodeTypes.LogicalExpression].includes(

@@ -15,9 +15,19 @@ const getCssStyleTags = (property: string) =>
 
 export const CSS_DISPLAY_TAGS: Record<string, string> = {
   ...getCssStyleTags('display'),
+
+  button: 'inline-block',
 }
 
-export const CSS_DISPLAY_CANVAS_TAGS: Record<string, string> = {}
+export const CSS_DISPLAY_CANVAS_TAGS: Record<string, string> = {
+  // iteration tags
+  for: 'inline',
+
+  block: 'block',
+
+  // variable tags
+  set: 'none',
+}
 
 export const CSS_DISPLAY_CANVAS_DEFAULT = 'inline'
 

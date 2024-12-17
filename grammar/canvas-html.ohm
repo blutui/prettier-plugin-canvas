@@ -11,19 +11,22 @@ Helpers {
     AnyExceptStar<lit> = (~ lit any)*
     AnyExceptPlus<lit> = (~ lit any)+
     identifierCharacter = alnum | "_" | "-"
-    
+
+    orderedListOf<a, b, sep> =
+        | nonemptyOrderedListOf<a, b, sep>
+        | emptyListOf<a, sep>
     nonemptyOrderedListOf<a, b, sep> =
-    	| nonemptyListOf<b, sep>
+        | nonemptyListOf<b, sep>
         | nonemptyOrderedListOfBoth<a, b, sep>
         | nonemptyListOf<a, sep>
     nonemptyOrderedListOfBoth<a, b, sep> =
-    	nonemptyListOf<a, sep> (sep nonemptyListOf<b, sep>)
+        nonemptyListOf<a, sep> (sep nonemptyListOf<b, sep>)
     
     singleQuote = "'"
     doubleQuote = "\""
     controls = "\u{007F}".."\u{009F}"
-	noncharacters = "\u{FDD0}".."\u{FDEF}"
-  	newline = "\r"? "\n"
+    noncharacters = "\u{FDD0}".."\u{FDEF}"
+    newline = "\r"? "\n"
 }
 
 Canvas <: Helpers {
@@ -107,7 +110,7 @@ Canvas <: Helpers {
     includeAliasExpression = space+ ("only")
     
     canvasTagSet = canvasTagRule<"set", canvasTagSetMarkup>
-    canvasTagSetMarkup = variableSegment space* "=" space* canvasExpression<delimTag> space*
+    canvasTagSetMarkup = variableSegment space* "=" space* canvasVariable<delimTag>
     
     canvasTagOpenBaseCase = canvasTagOpenRule<blockName, tagMarkup>
     
@@ -132,7 +135,8 @@ Canvas <: Helpers {
     comparison<delim> =
     	canvasExpression<delim> space* comparator space* canvasExpression<delim>
     comparator =
-    	( "=="
+    	( "<=>"
+        | "=="
         | "!="
         | ">="
         | "<="
@@ -159,7 +163,9 @@ Canvas <: Helpers {
         | canvasSequence<delim>
         | canvasMapping<delim>
         | canvasTernaryOperator<delim>
+        | canvasComparison<delim>
         | canvasFunction<delim>
+        | canvasArrowFunction<delim>
         | canvasVariableLookup<delim>
         
     canvasString<delim> = canvasSingleQuotedString<delim> | canvasDoubleQuotedString<delim>
@@ -179,6 +185,14 @@ Canvas <: Helpers {
         
     canvasFunction<delim> =
     	identifier space* "(" space* arguments<delim>? space* ")"
+        
+    canvasArrowFunction<delim> =
+    	"(" space* arrowFunctionArgumentList<delim> space* ")" space* "=>" space* canvasExpression<delim>
+        
+    arrowFunctionArgumentList<delim> =
+  		nonemptyListOf<variableSegmentAsLookup, argumentSeparator>
+        
+    canvasComparison<delim> = comparison<delim>
         
     canvasRange<delim> =
     	canvasExpression<delim> space* ".." space* canvasExpression<delim>
@@ -205,14 +219,14 @@ Canvas <: Helpers {
     reservedKeyword =
     	("loop" | "parent" | "block" | "attribute") endOfIdentifier
     
-    canvasFilter<delim> = space* "|" space* identifier (space* "(" space* arguments<delim> space* ")")? 
+    canvasFilter<delim> = space* "|" space* identifier (space* "(" space* arguments<delim> space* ")")?
     initialFilter<delim> = identifier (space* "(" space* arguments<delim> space* ")")? // First filter (no leading "|")
     additionalFilters<delim> = canvasFilter<delim>+ // Must match at lease one filter if present
     
     arguments<delim> = nonemptyOrderedListOf<positionalArgument<delim>, namedArgument<delim>, argumentSeparator>
-    argumentSeparator = space* "," space*
+  	argumentSeparator = space* "," space*
     argumentSeparatorOptionalComma = space* ","? space*
-    positionalArgument<delim> = canvasExpression<delim>
+    positionalArgument<delim> = canvasExpression<delim> ~(space* ("=" | ":"))
     namedArgument<delim> = canvasExpression<delim> space* ("=" | ":") space* canvasExpression<delim>
     tagArguments = listOf<namedArgument<delimTag>, argumentSeparatorOptionalComma>
     

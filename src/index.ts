@@ -1,5 +1,6 @@
 import { Parser, Printer, SupportLanguage } from 'prettier'
 
+import { options } from './options'
 import { toCanvasHtmlAST } from './parser'
 import { printerCanvasHtml } from './printer'
 import { locEnd, locStart } from '@/utils'
@@ -28,3 +29,9 @@ export const parsers: Record<string, Parser> = {
 export const printers: Record<string, Printer> = {
   canvas: printerCanvasHtml,
 }
+
+const defaultOptions = {
+  printWidth: 120,
+}
+
+export { defaultOptions, options }

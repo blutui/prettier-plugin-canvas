@@ -21,6 +21,7 @@ import {
   ConcreteCanvasTagNamed,
   ConcreteCanvasTagOpen,
   ConcreteCanvasTagOpenNamed,
+  ConcreteCanvasTagSetMarkup,
   ConcreteCanvasVariable,
   ConcreteCanvasVariableOutput,
   ConcreteHtmlTagClose,
@@ -62,6 +63,7 @@ import {
   nonTraversableProperties,
   ParentNode,
   Position,
+  SetMarkup,
   TextNode,
 } from './types'
 import { TAGS_WITHOUT_MARKUP } from './grammar'
@@ -183,7 +185,7 @@ export class ASTBuilder {
       const suitableParent = this.findCloseableParentNode(node)
 
       if (this.parent.type === NodeTypes.HtmlElement && suitableParent) {
-        console.log(suitableParent)
+        console.log('parent', suitableParent)
       } else {
         throw new Error(
           `Attempting to close ${nodeType} '${getName(node)} before ${this.parent.type} '${getName(this.parent)}' was closed`
@@ -528,6 +530,14 @@ function toNamedCanvasTag(
       }
     }
 
+    case NamedTags.set: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: NamedTags.set,
+        markup: toSetMarkup(node.markup),
+      }
+    }
+
     case NamedTags.if: {
       return {
         ...canvasTagBaseAttributes(node),
@@ -585,6 +595,16 @@ export function toUnnamedCanvasBranch(parentNode: CanvasHtmlNode): CanvasBranchU
 function toIncludeMarkup(node: ConcreteCanvasTagIncludeMarkup): IncludeMarkup {
   return {
     type: NodeTypes.IncludeMarkup,
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toSetMarkup(node: ConcreteCanvasTagSetMarkup): SetMarkup {
+  return {
+    type: NodeTypes.SetMarkup,
+    name: node.name,
+    value: toCanvasVariable(node.value),
     position: position(node),
     source: node.source,
   }
@@ -676,11 +696,25 @@ function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
       }
     }
 
+    case ConcreteNodeTypes.Comparison: {
+      return toComparison(node)
+    }
+
     case ConcreteNodeTypes.Function: {
       return {
         type: NodeTypes.Function,
         name: node.name,
         args: node.args.map(toCanvasArgument),
+        position: position(node),
+        source: node.source,
+      }
+    }
+
+    case ConcreteNodeTypes.ArrowFunction: {
+      return {
+        type: NodeTypes.ArrowFunction,
+        args: node.args.map(toCanvasArgument),
+        expression: toExpression(node.expression),
         position: position(node),
         source: node.source,
       }
@@ -726,7 +760,7 @@ function toCanvasArgument(node: ConcreteCanvasArgument): CanvasArgument {
 function toNamedArgument(node: ConcreteCanvasNamedArgument): CanvasNamedArgument {
   return {
     type: NodeTypes.NamedArgument,
-    name: node.name,
+    name: toExpression(node.name),
     value: toExpression(node.value),
     position: position(node),
     source: node.source,
