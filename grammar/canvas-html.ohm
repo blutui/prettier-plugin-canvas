@@ -182,6 +182,9 @@ Canvas <: Helpers {
         | "null"
         | "none"
         ) endOfIdentifier
+
+    canvasRange<delim> =
+    	"(" space* canvasExpression<delim> space* ".." space* canvasExpression<delim> space* ")"
         
     canvasFunction<delim> =
     	identifier space* "(" space* arguments<delim>? space* ")"
@@ -193,9 +196,6 @@ Canvas <: Helpers {
   		nonemptyListOf<variableSegmentAsLookup, argumentSeparator>
         
     canvasComparison<delim> = comparison<delim>
-        
-    canvasRange<delim> =
-    	canvasExpression<delim> space* ".." space* canvasExpression<delim>
         
     canvasMapping<delim> =
     	"{" space* arguments<delim> space* "}"

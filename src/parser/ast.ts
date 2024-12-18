@@ -696,6 +696,26 @@ function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
       }
     }
 
+    case ConcreteNodeTypes.CanvasLiteral: {
+      return {
+        type: NodeTypes.CanvasLiteral,
+        value: node.value,
+        keyword: node.keyword,
+        position: position(node),
+        source: node.source,
+      }
+    }
+
+    case ConcreteNodeTypes.Range: {
+      return {
+        type: NodeTypes.Range,
+        start: toExpression(node.start),
+        end: toExpression(node.end),
+        position: position(node),
+        source: node.source,
+      }
+    }
+
     case ConcreteNodeTypes.Comparison: {
       return toComparison(node)
     }

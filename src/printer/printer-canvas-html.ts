@@ -307,6 +307,20 @@ function printNode(
       }
     }
 
+    case NodeTypes.Range: {
+      return [
+        '(',
+        path.call((p) => print(p, { truncate: true }), 'start'),
+        '..',
+        path.call((p) => print(p, { truncate: true }), 'end'),
+        ')',
+      ]
+    }
+
+    case NodeTypes.CanvasLiteral: {
+      return node.keyword
+    }
+
     case NodeTypes.Function: {
       let args: Doc[] = []
 

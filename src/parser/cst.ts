@@ -26,9 +26,11 @@ export enum ConcreteNodeTypes {
   CanvasVariable = 'CanvasVariable',
   CanvasFilter = 'CanvasFilter',
   NamedArgument = 'NamedArgument',
+  CanvasLiteral = 'CanvasLiteral',
   VariableLookup = 'VariableLookup',
   String = 'String',
   Number = 'Number',
+  Range = 'Range',
   Function = 'Function',
   ArrowFunction = 'ArrowFunction',
   Comparison = 'Comparison',
@@ -36,6 +38,11 @@ export enum ConcreteNodeTypes {
 
   IncludeMarkup = 'IncludeMarkup',
   SetMarkup = 'SetMarkup',
+}
+
+export const CanvasLiteralValues = {
+  true: true as true,
+  false: false as false,
 }
 
 export interface ConcreteBasicNode<T> {
@@ -205,6 +212,8 @@ export interface ConcreteCanvasNamedArgument
 export type ConcreteCanvasExpression =
   | ConcreteStringLiteral
   | ConcreteNumberLiteral
+  | ConcreteCanvasLiteral
+  | ConcreteCanvasRange
   | ConcreteCanvasComparison
   | ConcreteCanvasFunction
   | ConcreteCanvasArrowFunction
@@ -217,6 +226,16 @@ export interface ConcreteStringLiteral extends ConcreteBasicNode<ConcreteNodeTyp
 
 export interface ConcreteNumberLiteral extends ConcreteBasicNode<ConcreteNodeTypes.Number> {
   value: string // float parsing is weird but supported
+}
+
+export interface ConcreteCanvasLiteral extends ConcreteBasicNode<ConcreteNodeTypes.CanvasLiteral> {
+  keyword: keyof typeof CanvasLiteralValues
+  value: (typeof CanvasLiteralValues)[keyof typeof CanvasLiteralValues]
+}
+
+export interface ConcreteCanvasRange extends ConcreteBasicNode<ConcreteNodeTypes.Range> {
+  start: ConcreteCanvasExpression
+  end: ConcreteCanvasExpression
 }
 
 export interface ConcreteCanvasFunction extends ConcreteBasicNode<ConcreteNodeTypes.Function> {
@@ -503,6 +522,27 @@ function toCST<T>(
     canvasNumber: {
       type: ConcreteNodeTypes.Number,
       value: 0,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    canvasLiteral: {
+      type: ConcreteNodeTypes.CanvasLiteral,
+      value: (tokens: ohm.Node[]) => {
+        const keyword = tokens[0].sourceString as keyof typeof CanvasLiteralValues
+        return CanvasLiteralValues[keyword]
+      },
+      keyword: 0,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    canvasRange: {
+      type: ConcreteNodeTypes.Range,
+      start: 2,
+      end: 6,
       locStart,
       locEnd,
       source,

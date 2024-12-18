@@ -156,6 +156,10 @@ describe('Canvas Tag: Set', () => {
       heredoc`
         {% set z=x|f('string') %}
         {% set z=x|f("string") %}
+        {% set z=x|f(0.0) %}
+        {% set z=x|f(0) %}
+        {% set z=x|f(x) %}
+        {% set z=x|f(true) %}
       `
     )
 
@@ -163,6 +167,10 @@ describe('Canvas Tag: Set', () => {
       heredoc`
         {% set z = x | f('string') %}
         {% set z = x | f('string') %}
+        {% set z = x | f(0.0) %}
+        {% set z = x | f(0) %}
+        {% set z = x | f(x) %}
+        {% set z = x | f(true) %}
       `
     )
   })

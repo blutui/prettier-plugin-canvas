@@ -1,3 +1,5 @@
+import { ConcreteCanvasLiteral } from './cst'
+
 export enum NodeTypes {
   Document = 'Document',
   CanvasRawTag = 'CanvasRawTag',
@@ -20,6 +22,8 @@ export enum NodeTypes {
   CanvasVariable = 'CanvasVariable',
   CanvasFilter = 'CanvasFilter',
   NamedArgument = 'NamedArgument',
+  CanvasLiteral = 'CanvasLiteral',
+  Range = 'Range',
   String = 'String',
   Number = 'Number',
   Function = 'Function',
@@ -215,6 +219,8 @@ export interface CanvasVariable extends ASTNode<NodeTypes.CanvasVariable> {
 export type CanvasExpression =
   | CanvasString
   | CanvasNumber
+  | CanvasLiteral
+  | CanvasRange
   | CanvasComparison
   | CanvasFunction
   | CanvasArrowFunction
@@ -243,6 +249,16 @@ export interface CanvasString extends ASTNode<NodeTypes.String> {
 export interface CanvasNumber extends ASTNode<NodeTypes.Number> {
   /** as a string for compatibility with numbers like 100_000 */
   value: string
+}
+
+export interface CanvasLiteral extends ASTNode<NodeTypes.CanvasLiteral> {
+  keyword: ConcreteCanvasLiteral['keyword']
+  value: ConcreteCanvasLiteral['value']
+}
+
+export interface CanvasRange extends ASTNode<NodeTypes.Range> {
+  start: CanvasExpression
+  end: CanvasExpression
 }
 
 export interface CanvasFunction extends ASTNode<NodeTypes.Function> {
