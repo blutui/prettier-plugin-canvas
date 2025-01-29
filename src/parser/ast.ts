@@ -14,6 +14,7 @@ import {
   ConcreteCanvasFilter,
   ConcreteCanvasNamedArgument,
   ConcreteCanvasNode,
+  ConcreteCanvasRawTag,
   ConcreteCanvasTag,
   ConcreteCanvasTagBaseCase,
   ConcreteCanvasTagClose,
@@ -24,6 +25,7 @@ import {
   ConcreteCanvasTagSetMarkup,
   ConcreteCanvasVariable,
   ConcreteCanvasVariableOutput,
+  ConcreteHtmlRawTag,
   ConcreteHtmlTagClose,
   ConcreteHtmlTagOpen,
   ConcreteHtmlVoidElement,
@@ -63,6 +65,8 @@ import {
   nonTraversableProperties,
   ParentNode,
   Position,
+  RawMarkup,
+  RawMarkupKinds,
   SetMarkup,
   TextNode,
 } from './types'
@@ -367,12 +371,42 @@ function buildAst(
         break
       }
 
+      case ConcreteNodeTypes.HtmlSelfClosingElement: {
+        console.log('push HtmlSelfClosingElement')
+        break
+      }
+
+      case ConcreteNodeTypes.HtmlDoctype: {
+        console.log('push HtmlDoctype')
+        break
+      }
+
       case ConcreteNodeTypes.HtmlComment: {
         builder.push({
           type: NodeTypes.HtmlComment,
           body: node.body,
           position: position(node),
           source: node.source,
+        })
+        break
+      }
+
+      case ConcreteNodeTypes.HtmlRawTag: {
+        builder.push({
+          type: NodeTypes.HtmlRawNode,
+          name: node.name,
+          body: toRawMarkup(node, options),
+          attributes: toAttributes(node.attrList || [], options),
+          position: position(node),
+          source: node.source,
+          blockStartPosition: {
+            start: node.blockStartLocStart,
+            end: node.blockStartLocEnd,
+          },
+          blockEndPosition: {
+            start: node.blockEndLocStart,
+            end: node.blockEndLocEnd,
+          },
         })
         break
       }
@@ -607,6 +641,52 @@ function toSetMarkup(node: ConcreteCanvasTagSetMarkup): SetMarkup {
     value: toCanvasVariable(node.value),
     position: position(node),
     source: node.source,
+  }
+}
+
+function toRawMarkup(
+  node: ConcreteHtmlRawTag | ConcreteCanvasRawTag,
+  options: ASTBuildOptions
+): RawMarkup {
+  return {
+    type: NodeTypes.RawMarkup,
+    kind: toRawMarkupKind(node),
+    nodes: cstToAst(node.children, options) as (TextNode | CanvasNode)[],
+    value: node.body,
+    position: {
+      start: node.blockStartLocEnd,
+      end: node.blockEndLocStart,
+    },
+    source: node.source,
+  }
+}
+
+function toRawMarkupKind(node: ConcreteHtmlRawTag | ConcreteCanvasRawTag): RawMarkupKinds {
+  switch (node.type) {
+    case ConcreteNodeTypes.HtmlRawTag:
+      return toRawMarkupKindFromHtmlNode(node)
+    case ConcreteNodeTypes.CanvasRawTag:
+      return toRawMarkupKindFromCanvasNode(node)
+    default:
+      return assertNever(node)
+  }
+}
+
+function toRawMarkupKindFromHtmlNode(
+  node: ConcreteHtmlRawTag | ConcreteCanvasRawTag
+): RawMarkupKinds {
+  switch (node.name) {
+    default:
+      return RawMarkupKinds.text
+  }
+}
+
+function toRawMarkupKindFromCanvasNode(
+  node: ConcreteHtmlRawTag | ConcreteCanvasRawTag
+): RawMarkupKinds {
+  switch (node.name) {
+    default:
+      return RawMarkupKinds.text
   }
 }
 

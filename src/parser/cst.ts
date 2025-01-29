@@ -56,13 +56,32 @@ export interface ConcreteHtmlNodeBase<T> extends ConcreteBasicNode<T> {
   attrList?: ConcreteAttributeNode[]
 }
 
+export interface ConcreteHtmlDoctype extends ConcreteBasicNode<ConcreteNodeTypes.HtmlDoctype> {
+  legacyDoctypeString: string | null
+}
+
 export interface ConcreteHtmlComment extends ConcreteBasicNode<ConcreteNodeTypes.HtmlComment> {
   body: string
+}
+
+export interface ConcreteHtmlRawTag extends ConcreteHtmlNodeBase<ConcreteNodeTypes.HtmlRawTag> {
+  name: string
+  body: string
+  children: (ConcreteTextNode | ConcreteCanvasNode)[]
+  blockStartLocStart: number
+  blockStartLocEnd: number
+  blockEndLocStart: number
+  blockEndLocEnd: number
 }
 
 export interface ConcreteHtmlVoidElement
   extends ConcreteHtmlNodeBase<ConcreteNodeTypes.HtmlVoidElement> {
   name: string
+}
+
+export interface ConcreteHtmlSelfClosingElement
+  extends ConcreteHtmlNodeBase<ConcreteNodeTypes.HtmlSelfClosingElement> {
+  name: (ConcreteTextNode | ConcreteCanvasVariableOutput)[]
 }
 
 export interface ConcreteHtmlTagOpen extends ConcreteHtmlNodeBase<ConcreteNodeTypes.HtmlTagOpen> {
@@ -256,8 +275,11 @@ export interface ConcreteCanvasVariableLookup
 }
 
 export type ConcreteHtmlNode =
+  | ConcreteHtmlDoctype
   | ConcreteHtmlComment
+  | ConcreteHtmlRawTag
   | ConcreteHtmlVoidElement
+  | ConcreteHtmlSelfClosingElement
   | ConcreteHtmlTagOpen
   | ConcreteHtmlTagClose
 
@@ -625,6 +647,35 @@ function toCST<T>(
       locStart,
       locEnd,
       source,
+    },
+
+    HtmlRawTagImpl: {
+      type: ConcreteNodeTypes.HtmlRawTag,
+      name: (tokens: ohm.Node[]) => tokens[0].children[1].sourceString,
+      attrList(tokens: ohm.Node[]) {
+        const mappings = (this as any).args.mapping
+        return tokens[0].children[2].toAST(mappings)
+      },
+      body: (tokens: ohm.Node[]) =>
+        source.slice(tokens[0].source.endIdx, tokens[2].source.startIdx),
+      children: (tokens: ohm.Node[]) => {
+        const rawMarkup = source.slice(tokens[0].source.endIdx, tokens[2].source.startIdx)
+        return toCST(
+          source,
+          grammars,
+          grammars.Canvas,
+          ['HelperMappings', 'CanvasMappings'],
+          rawMarkup,
+          tokens[0].source.endIdx
+        )
+      },
+      locStart,
+      locEnd,
+      source,
+      blockStartLocStart: (tokens: any) => tokens[0].source.startIdx,
+      blockStartLocEnd: (tokens: any) => tokens[0].source.endIdx,
+      blockEndLocStart: (tokens: any) => tokens[2].source.startIdx,
+      blockEndLocEnd: (tokens: any) => tokens[2].source.endIdx,
     },
 
     HtmlVoidElement: {

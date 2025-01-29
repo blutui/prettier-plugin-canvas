@@ -18,7 +18,9 @@ import type {
   DocumentNode,
   HtmlDanglingMarkerClose,
   HtmlElement,
+  HtmlRawNode,
   HtmlVoidElement,
+  RawMarkup,
   TextNode,
 } from '@/types'
 import { getConditionalComment, NodeTypes, Position } from '@/parser'
@@ -32,7 +34,7 @@ import { bodyLines, hasLineBreakInRange, isEmpty, isTextLikeNode, reindent } fro
 import { printClosingTagSuffix, printOpeningTagPrefix } from './print/tag'
 
 const { builders, utils } = doc
-const { align, fill, group, hardline, indent, join, line, softline } = builders
+const { align, fill, group, hardline, dedentToRoot, indent, join, line, softline } = builders
 
 const oppositeQuotes = {
   '"': "'",
@@ -156,13 +158,43 @@ function printNode(
     }
 
     case NodeTypes.HtmlRawNode: {
-      console.log('print:', NodeTypes.HtmlRawNode)
-      return ''
+      return printElement(path as AstPath<HtmlRawNode>, options, print, args)
     }
 
     case NodeTypes.RawMarkup: {
-      console.log('print:', NodeTypes.RawMarkup)
-      return ''
+      if (node.parentNode?.name === 'doc') {
+        return printCanvasDoc(path as AstPath<RawMarkup>, options, print, args)
+      }
+
+      const isRawMarkupIdentationSensitive = () => {
+        switch (node.kind) {
+          default: {
+            return false
+          }
+        }
+      }
+
+      if (isRawMarkupIdentationSensitive()) {
+        return [node.value.trimEnd(), hardline]
+      }
+
+      const parentNode = node.parentNode
+      const shouldNotIndentBody = parentNode && parentNode.type === NodeTypes.CanvasRawTag
+      const shouldIndentBody = !shouldNotIndentBody
+      const lines = bodyLines(node.value)
+      const rawFirstLineIsntIndented = !!node.value.split(/\r?\n/)[0]?.match(/\S/)
+      const shouldSkipFirstLine = rawFirstLineIsntIndented
+
+      const body =
+        lines.length > 0 && lines.find((line) => line.trim() !== '')
+          ? join(hardline, reindent(lines, shouldSkipFirstLine))
+          : softline
+
+      if (shouldIndentBody) {
+        return [indent([hardline, body]), hardline]
+      } else {
+        return [dedentToRoot([hardline, body]), hardline]
+      }
     }
 
     case NodeTypes.CanvasVariableOutput: {

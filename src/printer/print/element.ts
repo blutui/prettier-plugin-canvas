@@ -16,6 +16,7 @@ import {
   printClosingTag,
   printClosingTagSuffix,
   printOpeningTag,
+  printOpeningTagPrefix,
 } from './tag'
 import { printChildren } from './children'
 
@@ -29,8 +30,24 @@ export function printRawElement(
   print: CanvasPrinter,
   _args: CanvasPrinterArgs
 ) {
-  console.log('print raw element')
-  return group([])
+  const node = path.node
+  const attrGroupId = Symbol('element-attr-group-id')
+  let body: Doc = []
+  const hasEmptyBody = node.body.value.trim() === ''
+
+  if (!hasEmptyBody) {
+    body = [path.call((p: any) => print(p), 'body')]
+  }
+
+  return group([
+    printOpeningTagPrefix(node, options),
+    group(printOpeningTag(path, options, print, attrGroupId), {
+      id: attrGroupId,
+    }),
+    ...body,
+    ...printClosingTag(node, options),
+    printClosingTagSuffix(node, options),
+  ])
 }
 
 export function printElement(
