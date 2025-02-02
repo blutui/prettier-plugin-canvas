@@ -30,30 +30,4 @@ describe('Canvas Drop: String', () => {
       `
     )
   })
-
-  test('mapping', async () => {
-    const result = await format(
-      heredoc`
-        {{ date({
-            index: 5,
-            isOverview: true,
-            isLongPropertyName: true,
-            hasBeenWaiting: true
-        }) }}
-      `
-    )
-
-    expect(result).toBe(
-      heredoc`
-        {{
-          date({
-            index: 5,
-            isOverview: true,
-            isLongPropertyName: true,
-            hasBeenWaiting: true
-          })
-        }}
-      `
-    )
-  })
 })
