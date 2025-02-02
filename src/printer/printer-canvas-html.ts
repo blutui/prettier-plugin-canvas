@@ -323,6 +323,14 @@ function printNode(
       return printTextNode(path as AstPath<TextNode>, options, print)
     }
 
+    case NodeTypes.Concatenation: {
+      return [
+        path.call((p) => print(p, { truncate: true }), 'start'),
+        ' ~ ',
+        path.call((p) => print(p, { truncate: true }), 'end'),
+      ]
+    }
+
     case NodeTypes.String: {
       const preferredQuote = options.canvasSingleQuote ? `'` : `"`
       const valueHasQuotes = node.value.includes(preferredQuote)
@@ -349,6 +357,27 @@ function printNode(
       ]
     }
 
+    case NodeTypes.Sequence: {
+      let args: Doc[] = []
+
+      return group(['[', ...args, ']'])
+    }
+
+    case NodeTypes.Mapping: {
+      let args: Doc[] = []
+
+      if (node.args.length > 0) {
+        const printedArgs = path.map((p) => print(p), 'args')
+
+        args = [
+          indent([line, join([',', line], printedArgs)]), // Indent the arguments
+          line, // Ensure closing brace is on a new line
+        ]
+      }
+
+      return group(['{', ...args, '}'])
+    }
+
     case NodeTypes.CanvasLiteral: {
       return node.keyword
     }
@@ -357,15 +386,14 @@ function printNode(
       let args: Doc[] = []
 
       if (node.args.length > 0) {
-        const printed = path.map((p) => print(p), 'args')
-        const shouldPrintFirstArgumentSameLine = node.args[0].type !== NodeTypes.NamedArgument
+        const printedArgs = path.map((p) => print(p), 'args')
+        const shouldPrintOnSameLine =
+          node.args.length === 1 && node.args[0].type === NodeTypes.Mapping
 
-        if (shouldPrintFirstArgumentSameLine) {
-          const [firstDoc, ...rest] = printed
-          const restDoc = isEmpty(rest) ? '' : indent([])
-          args = [firstDoc, restDoc]
+        if (shouldPrintOnSameLine) {
+          args = [printedArgs[0]]
         } else {
-          args = []
+          args = [indent([softline, join([',', line], printedArgs)]), softline]
         }
       }
 

@@ -2,7 +2,7 @@ Helpers {
 	Node = TextNode*
     TextNode = AnyExceptPlus<openControl>
     openControl = end
-    
+
     empty = /* nothing */
     anyExcept<lit> = (~ lit any)
     anyExceptStar<lit> = (~ lit any)*
@@ -21,7 +21,7 @@ Helpers {
         | nonemptyListOf<a, sep>
     nonemptyOrderedListOfBoth<a, b, sep> =
         nonemptyListOf<a, sep> (sep nonemptyListOf<b, sep>)
-    
+
     singleQuote = "'"
     doubleQuote = "\""
     controls = "\u{007F}".."\u{009F}"
@@ -35,25 +35,25 @@ Canvas <: Helpers {
     endOfTagName = &("-%}" | "-}}" | "%}" | "}}")
     endOfVarName = ~identifierCharacter
     endOfIdentifier = endOfTagName | endOfVarName
-    
+
     canvasNode =
     	| canvasComment
     	| canvasDrop
     	| canvasTagClose
         | canvasTagOpen
     	| canvasTag
-        
+
     canvasTagStrict =
     	| canvasTagDo
     	| canvasTagExtends
     	| canvasTagElse
         | canvasTagInclude
         | canvasTagSet
-        
+
     canvasTag =
     	| canvasTagStrict
         | canvasTagBaseCase
-        
+
     canvasTagOpenStrict =
     	| canvasTagOpenApply
         | canvasTagOpenAutoescape
@@ -61,44 +61,44 @@ Canvas <: Helpers {
         | canvasTagOpenFor
         | canvasTagOpenGuard
         | canvasTagOpenIf
-        
+
     canvasTagOpen =
     	| canvasTagOpenStrict
         | canvasTagOpenBaseCase
-        
+
     canvasTagClose = "{%" "-"? space* "end" blockName space* tagMarkup "-"? "%}"
-    
+
     // These two are the same but transformed differently
     canvasTagRule<name, markup> =
     	"{%" "-"? space* (name endOfIdentifier) space* markup "-"? "%}"
     canvasTagOpenRule<name, markup> =
     	"{%" "-"? space* (name endOfIdentifier) space* markup "-"? "%}"
-        
+
     canvasTagBaseCase = canvasTagRule<canvasTagName, tagMarkup>
-    
+
     canvasTagOpenApply = canvasTagOpenRule<"apply", canvasTagOpenApplyMarkup>
     canvasTagOpenApplyMarkup = space* initialFilter<delimTag> (additionalFilters<delimTag>)? space*
-    
+
     canvasTagOpenAutoescape = canvasTagOpenRule<"autoescape", canvasTagOpenAutoescapeMarkup>
     canvasTagOpenAutoescapeMarkup = (canvasString<delimTag> | canvasLiteral) space*
-    
+
     canvasTagOpenBlock =
     	| canvasTagOpenRule<"block", canvasTagOpenBlockMarkup>
         | canvasTagOpenRule<"block", canvasTagOpenBlockShortcutMarkup>
     canvasTagOpenBlockMarkup = arguments<delimTag> space*
     canvasTagOpenBlockShortcutMarkup = canvasTagOpenBlockMarkup canvasVariable<delimTag>
-    
+
     canvasTagOpenGuard = canvasTagOpenRule<"guard", canvasTagOpenGuardMarkup>
     canvasTagOpenGuardMarkup = ("filter" | "function" | "test") space* variableSegment space*
-    
+
     canvasTagDo = canvasTagRule<"do", canvasTagDoMarkup>
     canvasTagDoMarkup = canvasVariable<delimTag>
-    
+
     canvasTagExtends = canvasTagRule<"extends", canvasTagExtendsMarkup>
     canvasTagExtendsMarkup =
     	snippetExpression space*
     snippetExpression = canvasExpression<delimTag>
-    
+
     canvasTagInclude = canvasTagRule<"include", canvasTagIncludeMarkup>
     canvasTagIncludeMarkup =
     	snippetExpression
@@ -108,12 +108,12 @@ Canvas <: Helpers {
         space*
     includeVariableExpression<delim> = space+ ("with") space+ canvasExpression<delim>
     includeAliasExpression = space+ ("only")
-    
+
     canvasTagSet = canvasTagRule<"set", canvasTagSetMarkup>
     canvasTagSetMarkup = variableSegment space* "=" space* canvasVariable<delimTag>
-    
+
     canvasTagOpenBaseCase = canvasTagOpenRule<blockName, tagMarkup>
-    
+
     canvasTagOpenFor = canvasTagOpenRule<"for", canvasTagOpenForMarkup>
     canvasTagOpenForMarkup =
     	keyValueIteration space* "in" space* (canvasVariable<delimTag> | canvasRange<delimTag>) space*
@@ -121,11 +121,11 @@ Canvas <: Helpers {
     	| keyValueSegment
         | variableSegment
     keyValueSegment = variableSegment space* "," space* variableSegment
-    
+
     canvasTagOpenIf = canvasTagOpenRule<"if", canvasTagOpenConditionalMarkup>
-    
+
     canvasTagElse = canvasTagRule<"else", empty>
-    
+
     canvasTagOpenConditionalMarkup = nonemptyListOf<condition<delimTag>, conditionSeparator> space*
     conditionSeparator = &logicalOperator
     condition<delim> =
@@ -144,38 +144,41 @@ Canvas <: Helpers {
         | "<"
         | "in"
         | "not in")
-        
+
     canvasTestExpression<delim> = canvasExpression<delim> space* ("is" | "is not") space* testOperator (space* "(" space* arguments<delim>? space* ")")?
-        
+
     canvasDrop = "{{" "-"? space* canvasDropCases "-"? "}}"
     canvasDropCases = canvasVariable<delimVO> | canvasDropBaseCase
     canvasDropBaseCase = anyExceptStar<delimVO>
-    
+
     canvasComment = "{#" space* anyExceptStar<"#}"> space* "#}"
-    
+
     canvasVariable<delim> = canvasExpression<delim> canvasFilter<delim>* space* &delim
-    
+
     canvasExpression<delim> =
-    	| canvasString<delim>
+    	  | canvasConcatenation<delim>
+    	  | canvasString<delim>
         | canvasNumber
         | canvasLiteral
         | canvasRange<delim>
         | canvasSequence<delim>
         | canvasMapping<delim>
-        | canvasTernaryOperator<delim>
-        | canvasComparison<delim>
         | canvasFunction<delim>
         | canvasArrowFunction<delim>
+        | canvasComparison<delim>
+        | canvasTernaryOperator<delim>
         | canvasVariableLookup<delim>
-        
+
+    canvasConcatenation<delim> = canvasExpression<delim> space* "~" space* canvasExpression<delim>
+
     canvasString<delim> = canvasSingleQuotedString<delim> | canvasDoubleQuotedString<delim>
     canvasSingleQuotedString<delim> = "'" anyExceptStar<("'" | delim)> "'"
     canvasDoubleQuotedString<delim> = "\"" anyExceptStar<("\"" | delim)> "\""
-    
+
     canvasNumber = canvasFloat | canvasInteger
     canvasInteger = "-"? digit+
     canvasFloat = "-"? digit+ "." digit+
-    
+
     canvasLiteral =
     	( "true"
         | "false"
@@ -185,27 +188,27 @@ Canvas <: Helpers {
 
     canvasRange<delim> =
     	"(" space* canvasExpression<delim> space* ".." space* canvasExpression<delim> space* ")"
-        
+
     canvasFunction<delim> =
     	identifier space* "(" space* arguments<delim>? space* ")"
-        
+
     canvasArrowFunction<delim> =
     	"(" space* arrowFunctionArgumentList<delim> space* ")" space* "=>" space* canvasExpression<delim>
-        
+
     arrowFunctionArgumentList<delim> =
   		nonemptyListOf<variableSegmentAsLookup, argumentSeparator>
-        
+
     canvasComparison<delim> = comparison<delim>
-        
-    canvasMapping<delim> =
-    	"{" space* arguments<delim> space* "}"
-        
+
     canvasSequence<delim> =
     	"[" space* nonemptyListOf<canvasExpression<delim>, argumentSeparator> space* "]"
-        
+
+    canvasMapping<delim> =
+    	"{" space* arguments<delim> space* "}"
+
     canvasTernaryOperator<delim> =
     	canvasExpression<delim> space* "?" space* canvasExpression<delim> space* ":" space* canvasExpression<delim>
-    
+
     canvasVariableLookup<delim> =
     	| reservedKeyword lookup<delim>*
     	| variableSegment lookup<delim>*
@@ -215,30 +218,30 @@ Canvas <: Helpers {
         | dotLookup
     indexLookup<delim> = space* "[" space* canvasExpression<delim> space* "]"
     dotLookup = space* "." space* identifier
-    
+
     reservedKeyword =
     	("loop" | "parent" | "block" | "attribute") endOfIdentifier
-    
+
     canvasFilter<delim> = space* "|" space* identifier (space* "(" space* arguments<delim> space* ")")?
     initialFilter<delim> = identifier (space* "(" space* arguments<delim> space* ")")? // First filter (no leading "|")
     additionalFilters<delim> = canvasFilter<delim>+ // Must match at lease one filter if present
-    
+
     arguments<delim> = nonemptyOrderedListOf<positionalArgument<delim>, namedArgument<delim>, argumentSeparator>
   	argumentSeparator = space* "," space*
     argumentSeparatorOptionalComma = space* ","? space*
     positionalArgument<delim> = canvasExpression<delim> ~(space* ("=" | ":"))
     namedArgument<delim> = canvasExpression<delim> space* ("=" | ":") space* canvasExpression<delim>
     tagArguments = listOf<namedArgument<delimTag>, argumentSeparatorOptionalComma>
-    
+
     variableSegment = (letter | "_") (~endOfTagName identifierCharacter)*
     variableSegmentAsLookup = variableSegment
     identifier = variableSegment "?"?
-    
+
     tagMarkup = anyExceptStar<delimTag>
-    
+
     canvasTagName =
     	letter (alnum | "_")*
-    
+
     blockName =
     	// Blutui blocks
         ( "form"
@@ -250,7 +253,7 @@ Canvas <: Helpers {
         | "guard"
         | "if"
         ) endOfIdentifier
-        
+
     delimTag = "-%}" | "%}"
     delimVO = "-}}" | "}}"
 }
@@ -258,7 +261,7 @@ Canvas <: Helpers {
 CanvasHTML <: Canvas {
 	Node := (HtmlNode | canvasNode | TextNode)*
 	openControl += "<"
-    
+
     HtmlNode =
     	| HtmlDoctype
     	| HtmlComment
@@ -267,82 +270,82 @@ CanvasHTML <: Canvas {
     	| HtmlSelfClosingElement
     	| HtmlTagClose
         | HtmlTagOpen
-    
+
     // https://html.spec.whatwg.org/multipage/syntax.html#the-doctype
    	HtmlDoctype =
     	#("<!" caseInsensitive<"doctype"> space+ caseInsensitive<"html">) legacyDoctypeString? ">"
     legacyDoctypeString = anyExceptPlus<">">
-        
+
     HtmlComment = "<!--" #(anyExceptStar<"-->"> "-->")
-    
+
     // These are black holes, we'll ignore what's in them
     HtmlRawTag =
     	| HtmlRawTagImpl<"script">
         | HtmlRawTagImpl<"style">
         | HtmlRawTagImpl<"svg">
-        
+
     HtmlRawTagImpl<name> =
     	TagStart<name>
       		HtmlRawTagContent<name>
         TagEnd<name>
     HtmlRawTagContent<name> = AnyExceptPlus<TagEnd<name>>
-    
+
     TagStart<name> = "<" name AttrList ">"
     TagEnd<name> = "</" name ">"
-    
+
     HtmlVoidElement =
     	#("<" voidElementName &(space | "/" | ">")) AttrList "/"? ">"
-    
+
     HtmlSelfClosingElement =
     	#("<" tagName) AttrList "/>"
-        
+
     HtmlTagOpen =
     	#("<" tagName) AttrList ">"
-        
+
     HtmlTagClose =
     	#("</" tagName) ">"
-        
+
     tagName = leadingTagNamePart trailingTagNamePart*
-    
+
     // The difference here is that the first test part must start
     // with a letter, but trailing text parts don't have that
     // requirement
     leadingTagNamePart =
     	| canvasDrop
     	| leadingTagNameTextNode
-        
+
     trailingTagNamePart =
     	| canvasDrop
     	| trailingTagNameTextNode
-        
+
     leadingTagNameTextNode = letter (alnum | "-" | ":")*
     trailingTagNameTextNode = (alnum | "-" | ":")+
-        
+
     AttrList = Attr*
-    
+
     Attr =
     	canvasNode | AttrSingleQuoted | AttrDoubleQuoted | AttrUnquoted | canvasNode | attrEmpty
-        
+
     attrEmpty = attrName
-    
+
     AttrUnquoted = attrName "=" attrUnquotedValue
     AttrSingleQuoted = attrName "=" singleQuote #(attrSingleQuotedValue singleQuote)
     AttrDoubleQuoted = attrName "=" doubleQuote #(attrDoubleQuotedValue doubleQuote)
-    
+
     attrName = (canvasDrop | attrNameTextNode)+
-    
+
     // https://html.spec.whatwg.org/#attributes-2
     attrNameTextNode = anyExceptPlus<(space | quotes | "=" | ">" | "/>" | "{{" | "{%" | controls | noncharacters)>
     attrUnquotedValue = (canvasDrop | attrUnquotedTextNode)*
     attrSingleQuotedValue = (canvasNode | attrSingleQuotedTextNode)*
     attrDoubleQuotedValue = (canvasNode | attrDoubleQuotedTextNode)*
-    
+
     attrUnquotedTextNode = anyExceptPlus<(space | quotes | "=" | "<" | ">" | "`" | "{{" | "{%")>
     attrSingleQuotedTextNode = anyExceptPlus<(singleQuote | "{{" | "{%")>
     attrDoubleQuotedTextNode = anyExceptPlus<(doubleQuote | "{{" | "{%")>
-    
+
     quotes = singleQuote | doubleQuote
-    
+
     // https://www.w3.org/TR/2011/WD-html-markup-20110113/syntax.html#void-element
     voidElementName =
     	( caseInsensitive<"area">

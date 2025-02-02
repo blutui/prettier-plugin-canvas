@@ -22,10 +22,13 @@ export enum NodeTypes {
   CanvasVariable = 'CanvasVariable',
   CanvasFilter = 'CanvasFilter',
   NamedArgument = 'NamedArgument',
-  CanvasLiteral = 'CanvasLiteral',
-  Range = 'Range',
+  Concatenation = 'Concatenation',
   String = 'String',
   Number = 'Number',
+  CanvasLiteral = 'CanvasLiteral',
+  Range = 'Range',
+  Sequence = 'Sequence',
+  Mapping = 'Mapping',
   Function = 'Function',
   ArrowFunction = 'ArrowFunction',
   VariableLookup = 'VariableLookup',
@@ -209,18 +212,23 @@ export interface CanvasVariableOutput extends ASTNode<NodeTypes.CanvasVariableOu
 }
 
 export interface CanvasVariable extends ASTNode<NodeTypes.CanvasVariable> {
+  /** expression | filter1 | filter2 */
   expression: CanvasExpression
 
+  /** expression | filter1 | filter2 */
   filters: CanvasFilter[]
 
   rawSource: string
 }
 
 export type CanvasExpression =
+  | CanvasConcatenation
   | CanvasString
   | CanvasNumber
   | CanvasLiteral
   | CanvasRange
+  | CanvasSequence
+  | CanvasMapping
   | CanvasComparison
   | CanvasFunction
   | CanvasArrowFunction
@@ -238,6 +246,11 @@ export interface CanvasNamedArgument extends ASTNode<NodeTypes.NamedArgument> {
   name: CanvasExpression
 
   value: CanvasExpression
+}
+
+export interface CanvasConcatenation extends ASTNode<NodeTypes.Concatenation> {
+  start: CanvasExpression
+  end: CanvasExpression
 }
 
 export interface CanvasString extends ASTNode<NodeTypes.String> {
@@ -259,6 +272,14 @@ export interface CanvasLiteral extends ASTNode<NodeTypes.CanvasLiteral> {
 export interface CanvasRange extends ASTNode<NodeTypes.Range> {
   start: CanvasExpression
   end: CanvasExpression
+}
+
+export interface CanvasSequence extends ASTNode<NodeTypes.Sequence> {
+  args: CanvasArgument[]
+}
+
+export interface CanvasMapping extends ASTNode<NodeTypes.Mapping> {
+  args: CanvasArgument[]
 }
 
 export interface CanvasFunction extends ASTNode<NodeTypes.Function> {

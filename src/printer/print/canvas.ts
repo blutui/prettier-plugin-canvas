@@ -58,7 +58,11 @@ export function printCanvasVariableOutput(
   )
 
   if (typeof node.markup !== 'string') {
-    const whitespace = node.markup.filters.length > 0 ? line : ' '
+    const shouldPrintLine =
+      node.markup.expression.type === NodeTypes.Function || node.markup.filters.length > 0
+
+    const whitespace = shouldPrintLine ? line : ' '
+
     return group([
       '{{',
       whitespaceStart,
@@ -69,6 +73,7 @@ export function printCanvasVariableOutput(
     ])
   }
 
+  // This should probably be better than this but it'll do for now.
   const lines = markupLines(node.markup)
   if (lines.length > 1) {
     return group([

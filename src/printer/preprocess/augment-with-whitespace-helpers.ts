@@ -94,6 +94,7 @@ function isLeadingWhitespaceSensitiveNode(node: AugmentedAstNode | undefined): b
     return isParentInnerRightSensitive
   }
 
+  // <a data-{{ this }}="hi">
   if (
     node.parentNode &&
     isAttributeNode(node.parentNode) &&
@@ -180,6 +181,11 @@ function isTrailingWhitespaceSensitiveNode(node: AugmentedAstNode): boolean {
     return hasNoLastChild || isLastChildTrailingSensitive
   }
 
+  // {% if cond %}<this>{% endif %}
+  // {% if cond %}<this><a>{% endif %}
+  // {% if cond %}<this><div>{% endif %}
+  // {% if cond %}<this><div></div>{% endif %}
+  // {% if cond %}<this>{% render 'icon' %}{% endif %}
   if (isHtmlElementWithoutCloseTag(node)) {
     if (!node.lastChild) {
       return isInnerLeftSpaceSensitiveCssDisplay(node.cssDisplay)
@@ -210,18 +216,25 @@ function isTrailingWhitespaceSensitiveNode(node: AugmentedAstNode): boolean {
     return false
   }
 
+  // the root node and invisible nodes are not trailing whitespace
+  // sensitive
   if (!node.parentNode || node.parentNode.cssDisplay === 'none') {
     return false
   }
 
+  // pre-like nodes are whitespace sensitive (globally), therefore if this
+  // node's parent is pre-like, this node is whitespace sensitive to the right.
   if (isPreLikeNode(node.parentNode)) {
     return true
   }
 
+  // We do it slightly differently than prettier/prettier.
   if (isScriptLikeTag(node)) {
     return false
   }
 
+  // BRs are not trailing whitespace sensitive, it's an exception as per prettier/language-html
+  // https://github.com/prettier/prettier/blob/c36d89712a24fdef753c056f4c82bc87ebe07865/src/language-html/utils/index.js#L290-L296
   if (isHtmlNode(node) && typeof node.name === 'string' && node.name === 'br') {
     return false
   }
@@ -307,7 +320,7 @@ export function isTrimmingOuterRight(node: AugmentedAstNode | undefined): boolea
   if (!node) return false
   switch (node.type) {
     case NodeTypes.CanvasRawTag:
-    case NodeTypes.CanvasTag: // {% if a %}{% endif -%}
+    case NodeTypes.CanvasTag: // {% if a %}{% endif -%}, {% set x -%}
       return (node.delimiterWhitespaceEnd ?? node.whitespaceEnd) === '-'
     case NodeTypes.CanvasBranch:
       return false
@@ -322,9 +335,9 @@ export function isTrimmingOuterLeft(node: AugmentedAstNode | undefined): boolean
   if (!node) return false
   switch (node.type) {
     case NodeTypes.CanvasRawTag:
-    case NodeTypes.CanvasTag:
-    case NodeTypes.CanvasBranch:
-    case NodeTypes.CanvasVariableOutput:
+    case NodeTypes.CanvasTag: // {%- if a %}{% endif %}, {%- set x = 1 %}
+    case NodeTypes.CanvasBranch: // {%- else %}
+    case NodeTypes.CanvasVariableOutput: // {{- 'val' }}
       return node.whitespaceStart === '-'
     default:
       return false
@@ -335,21 +348,21 @@ export function isTrimmingInnerLeft(node: AugmentedAstNode | undefined): boolean
   if (!node) return false
   switch (node.type) {
     case NodeTypes.CanvasRawTag:
-    case NodeTypes.CanvasTag:
+    case NodeTypes.CanvasTag: // {% form a -%}{% endform %}
       if (node.delimiterWhitespaceEnd === undefined) return false
       return node.whitespaceEnd === '-'
-    case NodeTypes.CanvasBranch:
-      // This branch should never happen
+    case NodeTypes.CanvasBranch: // {% if a -%}{% else -%}{% endif %}
+      // This branch should never happen.
       if (!node.parentNode || node.parentNode.type !== NodeTypes.CanvasTag) {
         return false
       }
 
       // First branch gets this from the parent
       if (!node.prev) {
-        return isTrimmingInnerRight(node.parentNode)
+        return isTrimmingInnerLeft(node.parentNode)
       }
 
-      // Otherwise gets it from the delimiter. eg {% else -%}
+      // Otherwise gets it from the delimiter. e.g. {% else -%}
       return node.whitespaceEnd === '-'
     case NodeTypes.CanvasVariableOutput:
     default:
@@ -361,21 +374,21 @@ export function isTrimmingInnerRight(node: AugmentedAstNode | undefined): boolea
   if (!node) return false
   switch (node.type) {
     case NodeTypes.CanvasRawTag:
-    case NodeTypes.CanvasTag:
+    case NodeTypes.CanvasTag: // {% if a %}{%- endif %}
       if (node.delimiterWhitespaceStart === undefined) return false
       return node.delimiterWhitespaceStart === '-'
     case NodeTypes.CanvasBranch:
-      // This branch should never happen
+      // This branch should never happen.
       if (!node.parentNode || node.parentNode.type !== NodeTypes.CanvasTag) {
         return false
       }
 
-      // First branch gets this from the parent
+      // Last branch gets this from the parent
       if (!node.next) {
         return isTrimmingInnerRight(node.parentNode)
       }
 
-      // Otherwise gets it from the delimiter. eg {% else -%}
+      // Otherwise gets it from the next branch
       return isTrimmingOuterLeft(node.next)
     case NodeTypes.CanvasVariableOutput:
     default:

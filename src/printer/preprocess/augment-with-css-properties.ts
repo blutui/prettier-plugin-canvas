@@ -100,9 +100,12 @@ function getCssDisplay(node: AugmentedNode<WithSiblings>, options: CanvasParserO
     case NodeTypes.CanvasFilter:
     case NodeTypes.NamedArgument:
     case NodeTypes.CanvasLiteral:
+    case NodeTypes.Concatenation:
     case NodeTypes.String:
     case NodeTypes.Number:
     case NodeTypes.Range:
+    case NodeTypes.Sequence:
+    case NodeTypes.Mapping:
     case NodeTypes.Function:
     case NodeTypes.ArrowFunction:
     case NodeTypes.VariableLookup:
@@ -176,9 +179,12 @@ function getNodeCssStyleWhiteSpace(
     case NodeTypes.CanvasFilter:
     case NodeTypes.NamedArgument:
     case NodeTypes.CanvasLiteral:
+    case NodeTypes.Concatenation:
     case NodeTypes.String:
     case NodeTypes.Number:
     case NodeTypes.Range:
+    case NodeTypes.Sequence:
+    case NodeTypes.Mapping:
     case NodeTypes.Function:
     case NodeTypes.ArrowFunction:
     case NodeTypes.VariableLookup:

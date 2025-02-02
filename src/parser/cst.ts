@@ -28,9 +28,12 @@ export enum ConcreteNodeTypes {
   NamedArgument = 'NamedArgument',
   CanvasLiteral = 'CanvasLiteral',
   VariableLookup = 'VariableLookup',
+  Concatenation = 'Concatenation',
   String = 'String',
   Number = 'Number',
   Range = 'Range',
+  Sequence = 'Sequence',
+  Mapping = 'Mapping',
   Function = 'Function',
   ArrowFunction = 'ArrowFunction',
   Comparison = 'Comparison',
@@ -229,14 +232,23 @@ export interface ConcreteCanvasNamedArgument
 }
 
 export type ConcreteCanvasExpression =
+  | ConcreteCanvasConcatenation
   | ConcreteStringLiteral
   | ConcreteNumberLiteral
   | ConcreteCanvasLiteral
   | ConcreteCanvasRange
-  | ConcreteCanvasComparison
+  | ConcreteCanvasSequence
+  | ConcreteCanvasMapping
   | ConcreteCanvasFunction
   | ConcreteCanvasArrowFunction
+  | ConcreteCanvasComparison
   | ConcreteCanvasVariableLookup
+
+export interface ConcreteCanvasConcatenation
+  extends ConcreteBasicNode<ConcreteNodeTypes.Concatenation> {
+  start: ConcreteCanvasExpression
+  end: ConcreteCanvasExpression
+}
 
 export interface ConcreteStringLiteral extends ConcreteBasicNode<ConcreteNodeTypes.String> {
   value: string
@@ -255,6 +267,14 @@ export interface ConcreteCanvasLiteral extends ConcreteBasicNode<ConcreteNodeTyp
 export interface ConcreteCanvasRange extends ConcreteBasicNode<ConcreteNodeTypes.Range> {
   start: ConcreteCanvasExpression
   end: ConcreteCanvasExpression
+}
+
+export interface ConcreteCanvasSequence extends ConcreteBasicNode<ConcreteNodeTypes.Sequence> {
+  args: ConcreteCanvasArgument[]
+}
+
+export interface ConcreteCanvasMapping extends ConcreteBasicNode<ConcreteNodeTypes.Mapping> {
+  args: ConcreteCanvasArgument[]
 }
 
 export interface ConcreteCanvasFunction extends ConcreteBasicNode<ConcreteNodeTypes.Function> {
@@ -523,6 +543,15 @@ function toCST<T>(
       source,
     },
 
+    canvasConcatenation: {
+      type: ConcreteNodeTypes.Concatenation,
+      start: 0,
+      end: 4,
+      locStart,
+      locEnd,
+      source,
+    },
+
     canvasString: 0,
     canvasDoubleQuotedString: {
       type: ConcreteNodeTypes.String,
@@ -570,7 +599,27 @@ function toCST<T>(
       source,
     },
 
-    canvasComparison: 0,
+    canvasSequence: {
+      type: ConcreteNodeTypes.Sequence,
+      args: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+
+    canvasMapping: {
+      type: ConcreteNodeTypes.Mapping,
+      args(nodes: ohm.Node[]) {
+        if (nodes[2].sourceString === '') {
+          return []
+        } else {
+          return nodes[2].toAST((this as any).args.mapping)
+        }
+      },
+      locStart,
+      locEnd,
+      source,
+    },
 
     canvasFunction: {
       type: ConcreteNodeTypes.Function,
@@ -602,6 +651,8 @@ function toCST<T>(
       source,
     },
     arrowFunctionArgumentList: 0,
+
+    canvasComparison: 0,
 
     canvasVariableLookup: {
       type: ConcreteNodeTypes.VariableLookup,

@@ -20,6 +20,11 @@ export const CSS_DISPLAY_TAGS: Record<string, string> = {
 }
 
 export const CSS_DISPLAY_CANVAS_TAGS: Record<string, string> = {
+  // control flow tags
+  if: 'inline',
+  else: 'inline',
+  elseif: 'inline',
+
   // iteration tags
   for: 'inline',
 

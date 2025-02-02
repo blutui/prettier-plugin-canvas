@@ -757,6 +757,16 @@ function toCanvasVariable(node: ConcreteCanvasVariable): CanvasVariable {
 
 function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
   switch (node.type) {
+    case ConcreteNodeTypes.Concatenation: {
+      return {
+        type: NodeTypes.Concatenation,
+        start: toExpression(node.start),
+        end: toExpression(node.end),
+        position: position(node),
+        source: node.source,
+      }
+    }
+
     case ConcreteNodeTypes.String: {
       return {
         type: NodeTypes.String,
@@ -791,6 +801,24 @@ function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
         type: NodeTypes.Range,
         start: toExpression(node.start),
         end: toExpression(node.end),
+        position: position(node),
+        source: node.source,
+      }
+    }
+
+    case ConcreteNodeTypes.Sequence: {
+      return {
+        type: NodeTypes.Sequence,
+        args: node.args.map(toCanvasArgument),
+        position: position(node),
+        source: node.source,
+      }
+    }
+
+    case ConcreteNodeTypes.Mapping: {
+      return {
+        type: NodeTypes.Mapping,
+        args: node.args.map(toCanvasArgument),
         position: position(node),
         source: node.source,
       }
