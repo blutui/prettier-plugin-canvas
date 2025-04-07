@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import { format, heredoc } from 'tests/utils'
 
-describe('Canvas Drop: Range', () => {
+describe('Canvas Output: Range', () => {
   test('it should stripe whitespace', async () => {
     const result = await format(
       heredoc`

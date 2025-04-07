@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import { format, heredoc } from 'tests/utils'
 
-describe('Canvas Drop: Mapping', () => {
+describe('Canvas Output: Mapping', () => {
   test('it should break and indent objects', async () => {
     const result = await format(
       heredoc`

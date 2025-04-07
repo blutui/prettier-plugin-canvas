@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import { format, heredoc } from 'tests/utils'
 
-describe('Canvas Drop: String', () => {
+describe('Canvas Output: String', () => {
   test('it should default to using single quotes', async () => {
     const result = await format(
       heredoc`

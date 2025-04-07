@@ -34,7 +34,8 @@ import { bodyLines, hasLineBreakInRange, isEmpty, isTextLikeNode, reindent } fro
 import { printClosingTagSuffix, printOpeningTagPrefix } from './print/tag'
 
 const { builders, utils } = doc
-const { align, fill, group, hardline, dedentToRoot, indent, join, line, softline } = builders
+const { align, fill, group, hardline, dedent, dedentToRoot, indent, join, line, softline } =
+  builders
 
 const oppositeQuotes = {
   '"': "'",
@@ -264,7 +265,9 @@ function printNode(
     }
 
     case NodeTypes.SetMarkup: {
-      return [node.name, ' = ', path.call((p: any) => print(p), 'value')]
+      const assignments = path.call((p: any) => print(p), 'value')
+
+      return [node.name, ' = ', assignments]
     }
 
     case NodeTypes.LogicalExpression: {
@@ -360,7 +363,13 @@ function printNode(
     case NodeTypes.Sequence: {
       let args: Doc[] = []
 
-      return group(['[', ...args, ']'])
+      if (node.args.length > 0) {
+        const printedArgs = path.map((p) => print(p), 'args')
+
+        args = [softline, join([',', line], printedArgs)]
+      }
+
+      return group(['[', ...args, dedent([softline, ']'])])
     }
 
     case NodeTypes.Mapping: {

@@ -491,7 +491,7 @@ function toCST<T>(
       source,
     },
 
-    canvasDrop: {
+    canvasOutput: {
       type: ConcreteNodeTypes.CanvasVariableOutput,
       markup: 3,
       whitespaceStart: 1,
@@ -501,9 +501,9 @@ function toCST<T>(
       source,
     },
 
-    canvasDropCases: 0,
+    canvasOutputCases: 0,
     canvasExpression: 0,
-    canvasDropBaseCase: (sw: ohm.Node) => sw.sourceString.trimEnd(),
+    canvasOutputBaseCase: (sw: ohm.Node) => sw.sourceString.trimEnd(),
     canvasVariable: {
       type: ConcreteNodeTypes.CanvasVariable,
       expression: 0,

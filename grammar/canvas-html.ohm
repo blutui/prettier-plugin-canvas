@@ -38,7 +38,7 @@ Canvas <: Helpers {
 
     canvasNode =
     	| canvasComment
-    	| canvasDrop
+    	| canvasOutput
     	| canvasTagClose
         | canvasTagOpen
     	| canvasTag
@@ -147,9 +147,9 @@ Canvas <: Helpers {
 
     canvasTestExpression<delim> = canvasExpression<delim> space* ("is" | "is not") space* testOperator (space* "(" space* arguments<delim>? space* ")")?
 
-    canvasDrop = "{{" "-"? space* canvasDropCases "-"? "}}"
-    canvasDropCases = canvasVariable<delimVO> | canvasDropBaseCase
-    canvasDropBaseCase = anyExceptStar<delimVO>
+    canvasOutput = "{{" "-"? space* canvasOutputCases "-"? "}}"
+    canvasOutputCases = canvasVariable<delimVO> | canvasOutputBaseCase
+    canvasOutputBaseCase = anyExceptStar<delimVO>
 
     canvasComment = "{#" space* anyExceptStar<"#}"> space* "#}"
 
@@ -311,11 +311,11 @@ CanvasHTML <: Canvas {
     // with a letter, but trailing text parts don't have that
     // requirement
     leadingTagNamePart =
-    	| canvasDrop
+    	| canvasOutput
     	| leadingTagNameTextNode
 
     trailingTagNamePart =
-    	| canvasDrop
+    	| canvasOutput
     	| trailingTagNameTextNode
 
     leadingTagNameTextNode = letter (alnum | "-" | ":")*
@@ -332,11 +332,11 @@ CanvasHTML <: Canvas {
     AttrSingleQuoted = attrName "=" singleQuote #(attrSingleQuotedValue singleQuote)
     AttrDoubleQuoted = attrName "=" doubleQuote #(attrDoubleQuotedValue doubleQuote)
 
-    attrName = (canvasDrop | attrNameTextNode)+
+    attrName = (canvasOutput | attrNameTextNode)+
 
     // https://html.spec.whatwg.org/#attributes-2
     attrNameTextNode = anyExceptPlus<(space | quotes | "=" | ">" | "/>" | "{{" | "{%" | controls | noncharacters)>
-    attrUnquotedValue = (canvasDrop | attrUnquotedTextNode)*
+    attrUnquotedValue = (canvasOutput | attrUnquotedTextNode)*
     attrSingleQuotedValue = (canvasNode | attrSingleQuotedTextNode)*
     attrDoubleQuotedValue = (canvasNode | attrDoubleQuotedTextNode)*
 

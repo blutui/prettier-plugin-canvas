@@ -108,7 +108,7 @@ function isLeadingWhitespaceSensitiveNode(node: AugmentedAstNode | undefined): b
     return false
   }
 
-  // {{ drop -}} this
+  // {{ output -}} this
   if (node.prev && isTrimmingOuterRight(node.prev)) {
     return false
   }
@@ -197,7 +197,7 @@ function isTrailingWhitespaceSensitiveNode(node: AugmentedAstNode): boolean {
     )
   }
 
-  // '{{ drop -}} text'
+  // '{{ output -}} text'
   if (isTrimmingOuterRight(node)) {
     return false
   }
@@ -211,7 +211,7 @@ function isTrailingWhitespaceSensitiveNode(node: AugmentedAstNode): boolean {
     return true
   }
 
-  // 'text {{- drop }}'
+  // 'text {{- output }}'
   if (node.next && isTrimmingOuterLeft(node.next)) {
     return false
   }
