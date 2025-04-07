@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsup",
     "prebuild": "node scripts/build.cjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "html-styles": "^1.0.0",
