@@ -6,7 +6,10 @@
 
 `blutui/prettier-plugin-canvas` is a [Prettier](https://prettier.io/) plugin for Blutui Canvas.
 
-> This Prettier plugin is heavily inspired by [prettier-plugin-liquid](https://github.com/Shopify/theme-tools/tree/main/packages/prettier-plugin-liquid)
+> This Prettier plugin is inspired by [prettier-plugin-liquid](https://github.com/Shopify/theme-tools/tree/main/packages/prettier-plugin-liquid)
+
+![NPM Version](https://img.shields.io/npm/v/prettier-plugin-canvas?style=for-the-badge)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/blutui/prettier-plugin-canvas/tests.yml?branch=main&style=for-the-badge)
 
 ---
 
