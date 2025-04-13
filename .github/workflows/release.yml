@@ -1,8 +1,6 @@
 name: Release
 
 on:
-  # Support manually pushing a new release
-  workflow_dispatch: {}
   # Trigger when a release is published
   release:
     types: [released]
