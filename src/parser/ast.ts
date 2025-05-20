@@ -29,6 +29,7 @@ import {
   ConcreteHtmlTagClose,
   ConcreteHtmlTagOpen,
   ConcreteHtmlVoidElement,
+  ConcreteIncludeVariablesExpression,
   ConcreteNodeTypes,
   ConcreteTextNode,
   toCanvasHtmlCST,
@@ -52,14 +53,17 @@ import {
   CanvasHtmlNode,
   CanvasNamedArgument,
   CanvasNode,
+  CanvasString,
   CanvasTag,
   CanvasTagNamed,
   CanvasVariable,
+  CanvasVariableLookup,
   CanvasVariableOutput,
   DocumentNode,
   HtmlElement,
   HtmlVoidElement,
   IncludeMarkup,
+  IncludeVariablesExpression,
   NamedTags,
   NodeTypes,
   nonTraversableProperties,
@@ -629,8 +633,21 @@ export function toUnnamedCanvasBranch(parentNode: CanvasHtmlNode): CanvasBranchU
 function toIncludeMarkup(node: ConcreteCanvasTagIncludeMarkup): IncludeMarkup {
   return {
     type: NodeTypes.IncludeMarkup,
+    snippet: toExpression(node.snippet) as CanvasString | CanvasVariableLookup,
+    variables: toIncludeVariablesExpression(node.variables),
+    accessible: node.accessible,
     position: position(node),
     source: node.source,
+  }
+}
+
+function toIncludeVariablesExpression(
+  node: ConcreteIncludeVariablesExpression
+): IncludeVariablesExpression | null {
+  if (!node) return null
+  return {
+    type: NodeTypes.IncludeVariablesExpression,
+    kind: node.kind,
   }
 }
 

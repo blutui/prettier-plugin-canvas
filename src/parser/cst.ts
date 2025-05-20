@@ -41,6 +41,8 @@ export enum ConcreteNodeTypes {
 
   IncludeMarkup = 'IncludeMarkup',
   SetMarkup = 'SetMarkup',
+
+  IncludeVariablesExpression = 'IncludeVariablesExpression',
 }
 
 export const CanvasLiteralValues = {
@@ -196,7 +198,17 @@ export interface ConcreteCanvasTagInclude
   extends ConcreteCanvasTagNode<NamedTags.include, ConcreteCanvasTagIncludeMarkup> {}
 
 export interface ConcreteCanvasTagIncludeMarkup
-  extends ConcreteBasicNode<ConcreteNodeTypes.IncludeMarkup> {}
+  extends ConcreteBasicNode<ConcreteNodeTypes.IncludeMarkup> {
+  snippet: ConcreteCanvasExpression
+  variables: ConcreteIncludeVariablesExpression
+  accessible: 'only'
+}
+
+export interface ConcreteIncludeVariablesExpression
+  extends ConcreteBasicNode<ConcreteNodeTypes.IncludeVariablesExpression> {
+  kind: 'with'
+  map: ConcreteCanvasMapping
+}
 
 export interface ConcreteCanvasTagSet
   extends ConcreteCanvasTagNode<NamedTags.set, ConcreteCanvasTagSetMarkup> {}
@@ -481,7 +493,18 @@ function toCST<T>(
       locEnd,
     },
 
+    snippetExpression: 0,
+
     canvasTagDoMarkup: 0,
+    canvasTagIncludeMarkup: {
+      type: ConcreteNodeTypes.IncludeMarkup,
+      snippet: 0,
+      variables: 2,
+      accessible: 3,
+      locStart,
+      locEnd,
+      source,
+    },
     canvasTagSetMarkup: {
       type: ConcreteNodeTypes.SetMarkup,
       name: 0,

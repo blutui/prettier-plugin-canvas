@@ -40,31 +40,31 @@ Canvas <: Helpers {
     	| canvasComment
     	| canvasOutput
     	| canvasTagClose
-        | canvasTagOpen
+      | canvasTagOpen
     	| canvasTag
 
     canvasTagStrict =
     	| canvasTagDo
     	| canvasTagExtends
     	| canvasTagElse
-        | canvasTagInclude
-        | canvasTagSet
+      | canvasTagInclude
+      | canvasTagSet
 
     canvasTag =
     	| canvasTagStrict
-        | canvasTagBaseCase
+      | canvasTagBaseCase
 
     canvasTagOpenStrict =
     	| canvasTagOpenApply
-        | canvasTagOpenAutoescape
-        | canvasTagOpenBlock
-        | canvasTagOpenFor
-        | canvasTagOpenGuard
-        | canvasTagOpenIf
+      | canvasTagOpenAutoescape
+      | canvasTagOpenBlock
+      | canvasTagOpenFor
+      | canvasTagOpenGuard
+      | canvasTagOpenIf
 
     canvasTagOpen =
     	| canvasTagOpenStrict
-        | canvasTagOpenBaseCase
+      | canvasTagOpenBaseCase
 
     canvasTagClose = "{%" "-"? space* "end" blockName space* tagMarkup "-"? "%}"
 
@@ -84,7 +84,7 @@ Canvas <: Helpers {
 
     canvasTagOpenBlock =
     	| canvasTagOpenRule<"block", canvasTagOpenBlockMarkup>
-        | canvasTagOpenRule<"block", canvasTagOpenBlockShortcutMarkup>
+      | canvasTagOpenRule<"block", canvasTagOpenBlockShortcutMarkup>
     canvasTagOpenBlockMarkup = arguments<delimTag> space*
     canvasTagOpenBlockShortcutMarkup = canvasTagOpenBlockMarkup canvasVariable<delimTag>
 
@@ -104,10 +104,10 @@ Canvas <: Helpers {
     	snippetExpression
         (space+ "ignore missing")?
         includeVariableExpression<delimTag>?
-        includeAliasExpression?
+        includeAccessible?
         space*
     includeVariableExpression<delim> = space+ ("with") space+ canvasExpression<delim>
-    includeAliasExpression = space+ ("only")
+    includeAccessible = space+ ("only")
 
     canvasTagSet = canvasTagRule<"set", canvasTagSetMarkup>
     canvasTagSetMarkup = variableSegment space* "=" space* canvasVariable<delimTag>
@@ -119,7 +119,7 @@ Canvas <: Helpers {
     	keyValueIteration space* "in" space* (canvasVariable<delimTag> | canvasRange<delimTag>) space*
     keyValueIteration =
     	| keyValueSegment
-        | variableSegment
+      | variableSegment
     keyValueSegment = variableSegment space* "," space* variableSegment
 
     canvasTagOpenIf = canvasTagOpenRule<"if", canvasTagOpenConditionalMarkup>

@@ -264,6 +264,13 @@ function printNode(
       ]
     }
 
+    case NodeTypes.IncludeMarkup: {
+      const snippet = path.call((p: any) => print(p), 'snippet')
+      const doc: Doc = [snippet]
+
+      return doc
+    }
+
     case NodeTypes.SetMarkup: {
       const assignments = path.call((p: any) => print(p), 'value')
 
