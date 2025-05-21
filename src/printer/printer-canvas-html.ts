@@ -267,8 +267,28 @@ function printNode(
     case NodeTypes.IncludeMarkup: {
       const snippet = path.call((p: any) => print(p), 'snippet')
       const doc: Doc = [snippet]
+      if (node.ignoreMissing) {
+        doc.push(' ', 'ignore missing')
+      }
+      if (node.withClause) {
+        doc.push(
+          ' ',
+          path.call((p: any) => print(p), 'withClause')
+        )
+      }
+      if (node.onlyClause) {
+        doc.push(' ', 'only')
+      }
 
       return doc
+    }
+
+    case NodeTypes.IncludeWithClause: {
+      return [node.kind, ' ', path.call((p: any) => print(p), 'value')]
+    }
+
+    case NodeTypes.IncludeOnlyClause: {
+      return node.value
     }
 
     case NodeTypes.SetMarkup: {
@@ -389,6 +409,7 @@ function printNode(
           indent([line, join([',', line], printedArgs)]), // Indent the arguments
           line, // Ensure closing brace is on a new line
         ]
+        // args = [softline, join([',', line], printedArgs)]
       }
 
       return group(['{', ...args, '}'])

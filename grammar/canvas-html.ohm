@@ -102,12 +102,13 @@ Canvas <: Helpers {
     canvasTagInclude = canvasTagRule<"include", canvasTagIncludeMarkup>
     canvasTagIncludeMarkup =
     	snippetExpression
-        (space+ "ignore missing")?
-        includeVariableExpression<delimTag>?
-        includeAccessible?
-        space*
-    includeVariableExpression<delim> = space+ ("with") space+ canvasExpression<delim>
-    includeAccessible = space+ ("only")
+      includeIgnoreMissing?
+      includeWithClause<delimTag>?
+      includeOnlyClause?
+      space*
+    includeIgnoreMissing = space+ "ignore missing"
+    includeWithClause<delim> = space+ "with" space+ canvasExpression<delim>
+    includeOnlyClause = space+ "only"
 
     canvasTagSet = canvasTagRule<"set", canvasTagSetMarkup>
     canvasTagSetMarkup = variableSegment space* "=" space* canvasVariable<delimTag>

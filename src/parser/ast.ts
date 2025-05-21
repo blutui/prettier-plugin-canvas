@@ -29,7 +29,8 @@ import {
   ConcreteHtmlTagClose,
   ConcreteHtmlTagOpen,
   ConcreteHtmlVoidElement,
-  ConcreteIncludeVariablesExpression,
+  ConcreteIncludeOnlyClause,
+  ConcreteIncludeWithClause,
   ConcreteNodeTypes,
   ConcreteTextNode,
   toCanvasHtmlCST,
@@ -63,7 +64,8 @@ import {
   HtmlElement,
   HtmlVoidElement,
   IncludeMarkup,
-  IncludeVariablesExpression,
+  IncludeOnlyClause,
+  IncludeWithClause,
   NamedTags,
   NodeTypes,
   nonTraversableProperties,
@@ -634,20 +636,32 @@ function toIncludeMarkup(node: ConcreteCanvasTagIncludeMarkup): IncludeMarkup {
   return {
     type: NodeTypes.IncludeMarkup,
     snippet: toExpression(node.snippet) as CanvasString | CanvasVariableLookup,
-    variables: toIncludeVariablesExpression(node.variables),
-    accessible: node.accessible,
+    ignoreMissing: node.ignoreMissing,
+    withClause: toIncludeWithClause(node.withClause),
+    onlyClause: toIncludeOnlyClause(node.onlyClause),
     position: position(node),
     source: node.source,
   }
 }
 
-function toIncludeVariablesExpression(
-  node: ConcreteIncludeVariablesExpression
-): IncludeVariablesExpression | null {
+function toIncludeWithClause(node: ConcreteIncludeWithClause): IncludeWithClause | null {
   if (!node) return null
   return {
-    type: NodeTypes.IncludeVariablesExpression,
+    type: NodeTypes.IncludeWithClause,
     kind: node.kind,
+    value: toExpression(node.value),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toIncludeOnlyClause(node: ConcreteIncludeOnlyClause): IncludeOnlyClause | null {
+  if (!node) return null
+  return {
+    type: NodeTypes.IncludeOnlyClause,
+    value: node.value,
+    position: position(node),
+    source: node.source,
   }
 }
 

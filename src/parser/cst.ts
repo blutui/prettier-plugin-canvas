@@ -42,7 +42,8 @@ export enum ConcreteNodeTypes {
   IncludeMarkup = 'IncludeMarkup',
   SetMarkup = 'SetMarkup',
 
-  IncludeVariablesExpression = 'IncludeVariablesExpression',
+  IncludeWithClause = 'IncludeWithClause',
+  IncludeOnlyClause = 'IncludeOnlyClause',
 }
 
 export const CanvasLiteralValues = {
@@ -200,14 +201,20 @@ export interface ConcreteCanvasTagInclude
 export interface ConcreteCanvasTagIncludeMarkup
   extends ConcreteBasicNode<ConcreteNodeTypes.IncludeMarkup> {
   snippet: ConcreteCanvasExpression
-  variables: ConcreteIncludeVariablesExpression
-  accessible: 'only'
+  ignoreMissing: 'ignore missing'
+  withClause: ConcreteIncludeWithClause
+  onlyClause: ConcreteIncludeOnlyClause
 }
 
-export interface ConcreteIncludeVariablesExpression
-  extends ConcreteBasicNode<ConcreteNodeTypes.IncludeVariablesExpression> {
+export interface ConcreteIncludeWithClause
+  extends ConcreteBasicNode<ConcreteNodeTypes.IncludeWithClause> {
   kind: 'with'
-  map: ConcreteCanvasMapping
+  value: ConcreteCanvasExpression
+}
+
+export interface ConcreteIncludeOnlyClause
+  extends ConcreteBasicNode<ConcreteNodeTypes.IncludeOnlyClause> {
+  value: 'only'
 }
 
 export interface ConcreteCanvasTagSet
@@ -494,13 +501,30 @@ function toCST<T>(
     },
 
     snippetExpression: 0,
+    includeIgnoreMissing: 1,
+    includeWithClause: {
+      type: ConcreteNodeTypes.IncludeWithClause,
+      kind: 1,
+      value: 3,
+      locStart,
+      locEnd,
+      source,
+    },
+    includeOnlyClause: {
+      type: ConcreteNodeTypes.IncludeOnlyClause,
+      value: 1,
+      locStart,
+      locEnd,
+      source,
+    },
 
     canvasTagDoMarkup: 0,
     canvasTagIncludeMarkup: {
       type: ConcreteNodeTypes.IncludeMarkup,
       snippet: 0,
-      variables: 2,
-      accessible: 3,
+      ignoreMissing: 1,
+      withClause: 2,
+      onlyClause: 3,
       locStart,
       locEnd,
       source,
