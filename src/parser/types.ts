@@ -38,6 +38,8 @@ export enum NodeTypes {
   RawMarkup = 'RawMarkup',
   IncludeMarkup = 'IncludeMarkup',
   SetMarkup = 'SetMarkup',
+  IncludeWithClause = 'IncludeWithClause',
+  IncludeOnlyClause = 'IncludeOnlyClause',
 }
 
 export interface Position {
@@ -56,6 +58,9 @@ export type CanvasHtmlNode =
   | CanvasFilter
   | CanvasNamedArgument
   | RawMarkup
+  | IncludeMarkup
+  | IncludeWithClause
+  | IncludeOnlyClause
   | SetMarkup
   | CanvasLogicalExpression
   | CanvasComparison
@@ -168,7 +173,22 @@ export interface CanvasComparison extends ASTNode<NodeTypes.Comparison> {
 
 export interface CanvasTagInclude extends CanvasTagNode<NamedTags.include, IncludeMarkup> {}
 
-export interface IncludeMarkup extends ASTNode<NodeTypes.IncludeMarkup> {}
+/** {% include 'template' %} */
+export interface IncludeMarkup extends ASTNode<NodeTypes.IncludeMarkup> {
+  snippet: CanvasString | CanvasVariableLookup
+  ignoreMissing: 'ignore missing' | null
+  withClause: IncludeWithClause | null
+  onlyClause: IncludeOnlyClause | null
+}
+
+export interface IncludeWithClause extends ASTNode<NodeTypes.IncludeWithClause> {
+  kind: 'with'
+  value: CanvasExpression
+}
+
+export interface IncludeOnlyClause extends ASTNode<NodeTypes.IncludeOnlyClause> {
+  value: 'only'
+}
 
 export interface CanvasTagSet extends CanvasTagNode<NamedTags.set, SetMarkup> {}
 

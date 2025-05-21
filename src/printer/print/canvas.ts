@@ -133,9 +133,10 @@ function printNamedCanvasBlockStart(
     }
 
     case NamedTags.include: {
-      console.log('namedtags: include')
+      const markup = node.markup
+      const trailingWhitespace = markup.variables && markup.accessible ? line : ' '
 
-      return ''
+      return tag(trailingWhitespace)
     }
 
     case NamedTags.set: {

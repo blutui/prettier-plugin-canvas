@@ -29,6 +29,8 @@ import {
   ConcreteHtmlTagClose,
   ConcreteHtmlTagOpen,
   ConcreteHtmlVoidElement,
+  ConcreteIncludeOnlyClause,
+  ConcreteIncludeWithClause,
   ConcreteNodeTypes,
   ConcreteTextNode,
   toCanvasHtmlCST,
@@ -52,14 +54,18 @@ import {
   CanvasHtmlNode,
   CanvasNamedArgument,
   CanvasNode,
+  CanvasString,
   CanvasTag,
   CanvasTagNamed,
   CanvasVariable,
+  CanvasVariableLookup,
   CanvasVariableOutput,
   DocumentNode,
   HtmlElement,
   HtmlVoidElement,
   IncludeMarkup,
+  IncludeOnlyClause,
+  IncludeWithClause,
   NamedTags,
   NodeTypes,
   nonTraversableProperties,
@@ -629,6 +635,31 @@ export function toUnnamedCanvasBranch(parentNode: CanvasHtmlNode): CanvasBranchU
 function toIncludeMarkup(node: ConcreteCanvasTagIncludeMarkup): IncludeMarkup {
   return {
     type: NodeTypes.IncludeMarkup,
+    snippet: toExpression(node.snippet) as CanvasString | CanvasVariableLookup,
+    ignoreMissing: node.ignoreMissing,
+    withClause: toIncludeWithClause(node.withClause),
+    onlyClause: toIncludeOnlyClause(node.onlyClause),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toIncludeWithClause(node: ConcreteIncludeWithClause): IncludeWithClause | null {
+  if (!node) return null
+  return {
+    type: NodeTypes.IncludeWithClause,
+    kind: node.kind,
+    value: toExpression(node.value),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toIncludeOnlyClause(node: ConcreteIncludeOnlyClause): IncludeOnlyClause | null {
+  if (!node) return null
+  return {
+    type: NodeTypes.IncludeOnlyClause,
+    value: node.value,
     position: position(node),
     source: node.source,
   }
