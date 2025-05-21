@@ -33,6 +33,13 @@ jobs:
         run: |
           npm run test
 
+      - name: Set version
+        run: |
+          # Extract version from the tag (eg. v1.0.0 -> 1.0.0)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          # Update the version in package.json
+          npm version $VERSION --no-git-tag-version
+
       - name: Publish to NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
