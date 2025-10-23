@@ -14,7 +14,8 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "tests/*": ["./tests/*"]
     }
   },
   "include": ["**/*.d.ts", "**/*.ts"]
