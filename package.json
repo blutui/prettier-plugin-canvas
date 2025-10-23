@@ -29,8 +29,12 @@
     "prettier": "^3.0.0"
   },
   "devDependencies": {
+    "@types/node": "^24.9.1",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
-    "vitest": "^3.1.1"
+    "vitest": "^4.0.1"
+  },
+  "volta": {
+    "node": "22.21.0"
   }
 }
