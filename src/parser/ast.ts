@@ -26,6 +26,7 @@ import {
   ConcreteCanvasVariable,
   ConcreteCanvasVariableOutput,
   ConcreteHtmlRawTag,
+  ConcreteHtmlSelfClosingElement,
   ConcreteHtmlTagClose,
   ConcreteHtmlTagOpen,
   ConcreteHtmlVoidElement,
@@ -62,6 +63,7 @@ import {
   CanvasVariableOutput,
   DocumentNode,
   HtmlElement,
+  HtmlSelfClosingElement,
   HtmlVoidElement,
   IncludeMarkup,
   IncludeOnlyClause,
@@ -378,7 +380,7 @@ function buildAst(
       }
 
       case ConcreteNodeTypes.HtmlSelfClosingElement: {
-        console.log('push HtmlSelfClosingElement')
+        builder.push(toHtmlSelfClosingElement(node, options))
         break
       }
 
@@ -946,6 +948,20 @@ function toHtmlVoidElement(
   return {
     type: NodeTypes.HtmlVoidElement,
     name: node.name,
+    attributes: toAttributes(node.attrList || [], options),
+    position: position(node),
+    blockStartPosition: position(node),
+    source: node.source,
+  }
+}
+
+function toHtmlSelfClosingElement(
+  node: ConcreteHtmlSelfClosingElement,
+  options: ASTBuildOptions
+): HtmlSelfClosingElement {
+  return {
+    type: NodeTypes.HtmlSelfClosingElement,
+    name: cstToAst(node.name, options) as (TextNode | CanvasVariableOutput)[],
     attributes: toAttributes(node.attrList || [], options),
     position: position(node),
     blockStartPosition: position(node),
