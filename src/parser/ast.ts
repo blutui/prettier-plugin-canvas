@@ -707,6 +707,12 @@ function toRawMarkupKindFromHtmlNode(
   node: ConcreteHtmlRawTag | ConcreteCanvasRawTag
 ): RawMarkupKinds {
   switch (node.name) {
+    case 'script': {
+      return RawMarkupKinds.javascript
+    }
+    case 'style': {
+      return RawMarkupKinds.css
+    }
     default:
       return RawMarkupKinds.text
   }

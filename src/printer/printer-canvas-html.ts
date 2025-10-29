@@ -23,9 +23,10 @@ import type {
   RawMarkup,
   TextNode,
 } from '@/types'
-import { getConditionalComment, NodeTypes, Position } from '@/parser'
+import { getConditionalComment, NodeTypes, nonTraversableProperties, Position } from '@/parser'
 import { assertNever } from '@/utils'
 
+import { embed } from './embed'
 import { preprocess } from './print-preprocess'
 import { printCanvasBranch, printCanvasTag, printCanvasVariableOutput } from './print/canvas'
 import { printChildren } from './print/children'
@@ -491,5 +492,23 @@ function printNode(
 
 export const printerCanvasHtml: Printer<CanvasHtmlNode> = {
   print: printNode,
+  embed: embed,
   preprocess: preprocess as any,
+  getVisitorKeys(node, nonTraversableKeys) {
+    return Object.keys(node).filter(
+      (key) =>
+        !nonTraversableKeys.has(key) &&
+        !nonTraversableProperties.has(key) &&
+        hasOrIsNode(node, key as keyof CanvasHtmlNode)
+    )
+  },
+}
+
+function hasOrIsNode<N extends CanvasHtmlNode, K extends keyof N>(node: N, key: K) {
+  const v = node[key]
+  return Array.isArray(v) || isNode(v)
+}
+
+function isNode(x: unknown): x is CanvasHtmlNode {
+  return x !== null && typeof x === 'object' && 'type' in x && typeof x.type === 'string'
 }

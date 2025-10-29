@@ -367,3 +367,6 @@ CanvasHTML <: Canvas {
         | caseInsensitive<"wbr">
         ) ~identifierCharacter
 }
+
+StrictCanvasHTML <: CanvasHTML {
+}

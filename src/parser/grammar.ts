@@ -22,4 +22,8 @@ export const placeholderGrammars: CanvasGrammars = {
   CanvasHTML: canvasHtmlGrammars['WithPlaceholderCanvasHTML'],
 }
 
+export const VOID_ELEMENTS = (
+  strictGrammars.CanvasHTML.rules as any
+).voidElementName.body.factors[0].terms.map((x: any) => x.args[0].obj) as string[]
+
 export const TAGS_WITHOUT_MARKUP = ['else']
