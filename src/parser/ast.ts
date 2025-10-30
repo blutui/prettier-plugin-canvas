@@ -354,7 +354,26 @@ function buildAst(
       }
 
       case ConcreteNodeTypes.CanvasRawTag: {
-        console.log('push CanvasRawTag')
+        builder.push({
+          type: NodeTypes.CanvasRawTag,
+          markup: markup(node.name, node.markup),
+          name: node.name,
+          body: toRawMarkup(node, options),
+          whitespaceStart: node.whitespaceStart ?? '',
+          whitespaceEnd: node.whitespaceEnd ?? '',
+          delimiterWhitespaceStart: node.delimiterWhitespaceStart ?? '',
+          delimiterWhitespaceEnd: node.delimiterWhitespaceEnd ?? '',
+          position: position(node),
+          blockStartPosition: {
+            start: node.blockStartLocStart,
+            end: node.blockStartLocEnd,
+          },
+          blockEndPosition: {
+            start: node.blockEndLocStart,
+            end: node.blockEndLocEnd,
+          },
+          source: node.source,
+        })
         break
       }
 
@@ -703,11 +722,28 @@ function toRawMarkupKind(node: ConcreteHtmlRawTag | ConcreteCanvasRawTag): RawMa
   }
 }
 
-function toRawMarkupKindFromHtmlNode(
-  node: ConcreteHtmlRawTag | ConcreteCanvasRawTag
-): RawMarkupKinds {
+function toRawMarkupKindFromHtmlNode(node: ConcreteHtmlRawTag): RawMarkupKinds {
   switch (node.name) {
     case 'script': {
+      const scriptAttr = node.attrList?.find(
+        (attr) =>
+          'name' in attr &&
+          typeof attr.name !== 'string' &&
+          attr.name.length === 1 &&
+          attr.name[0].type === ConcreteNodeTypes.TextNode &&
+          attr.name[0].value === 'type'
+      )
+
+      if (
+        !scriptAttr ||
+        !('value' in scriptAttr) ||
+        scriptAttr.value.length === 0 ||
+        scriptAttr.value[0].type !== ConcreteNodeTypes.TextNode
+      ) {
+        return RawMarkupKinds.javascript
+      }
+      const type = scriptAttr.value[0].value
+
       return RawMarkupKinds.javascript
     }
     case 'style': {
@@ -718,9 +754,7 @@ function toRawMarkupKindFromHtmlNode(
   }
 }
 
-function toRawMarkupKindFromCanvasNode(
-  node: ConcreteHtmlRawTag | ConcreteCanvasRawTag
-): RawMarkupKinds {
+function toRawMarkupKindFromCanvasNode(node: ConcreteCanvasRawTag): RawMarkupKinds {
   switch (node.name) {
     default:
       return RawMarkupKinds.text

@@ -2,6 +2,8 @@ import * as ohm from 'ohm-js'
 
 export const canvasHtmlGrammars = ohm.grammars(require('../../grammar/canvas-html.ohm.cjs'))
 
+export const TextNodeGrammer = canvasHtmlGrammars['Helpers']
+
 export interface CanvasGrammars {
   Canvas: ohm.Grammar
   CanvasHTML: ohm.Grammar

@@ -74,6 +74,10 @@ function getCssDisplay(node: AugmentedNode<WithSiblings>, options: CanvasParserO
     case NodeTypes.CanvasTag:
     case NodeTypes.CanvasRawTag:
       switch (options.htmlWhitespaceSensitivity) {
+        case 'strict':
+          return 'inline'
+        case 'ignore':
+          return 'block'
         default: {
           return CSS_DISPLAY_CANVAS_TAGS[node.name] || CSS_DISPLAY_CANVAS_DEFAULT
         }

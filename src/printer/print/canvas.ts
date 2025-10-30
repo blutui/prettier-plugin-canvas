@@ -9,6 +9,7 @@ import {
   CanvasParserOptions,
   CanvasPrinter,
   CanvasPrinterArgs,
+  CanvasRawTag,
   CanvasTag,
   CanvasTagNamed,
   CanvasVariableOutput,
@@ -17,6 +18,7 @@ import {
 import {
   FORCE_FLAT_GROUP_ID,
   getWhitespaceTrim,
+  hasLineBreakInRange,
   hasMeaningfulLackOfDanglingWhitespace,
   hasMeaningfulLackOfLeadingWhitespace,
   hasMeaningfulLackOfTrailingWhitespace,
@@ -323,6 +325,46 @@ export function printCanvasTag(
       isAttributeNode(node) ||
       isDeeplyNested(node),
   })
+}
+
+export function printCanvasRawTag(
+  path: AstPath<CanvasRawTag>,
+  options: CanvasParserOptions,
+  print: CanvasPrinter,
+  { isCanvasStatement }: CanvasPrinterArgs
+): Doc {
+  let body: Doc = []
+  const node = path.node
+  const hasEmptyBody = node.body.value.trim() === ''
+  const shouldPrintAsIs =
+    node.isIndentationSensitive ||
+    !hasLineBreakInRange(node.source, node.body.position.start, node.body.position.end)
+
+  const blockStart = isCanvasStatement
+    ? [node.name]
+    : group([
+        '{%',
+        node.whitespaceStart,
+        ' ',
+        node.name,
+        ' ',
+        node.markup ? `${node.markup} ` : '',
+        node.whitespaceEnd,
+        '%}',
+      ])
+  const blockEnd = isCanvasStatement
+    ? ['end', node.name]
+    : ['{%', node.whitespaceStart, ' ', 'end', node.name, ' ', node.whitespaceEnd, '%}']
+
+  if (shouldPrintAsIs) {
+    body = [node.source.slice(node.blockStartPosition.end, node.blockEndPosition.start)]
+  } else if (hasEmptyBody) {
+    body = [hardline]
+  } else {
+    body = [path.call((p) => print(p), 'body')]
+  }
+
+  return [blockStart, ...body, blockEnd]
 }
 
 function innerLeadingWhitespace(node: CanvasTag | CanvasBranch) {
