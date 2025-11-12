@@ -14,7 +14,9 @@ export function isCanvasHtmlNode(value: any): value is CanvasHtmlNode {
 }
 
 export type CanvasAstPath = AstPath<CanvasHtmlNode>
-export type CanvasParserOptions = ParserOptions<CanvasHtmlNode> & {}
+export type CanvasParserOptions = ParserOptions<CanvasHtmlNode> & {
+  embeddedSingleQuote: boolean
+}
 export type CanvasPrinterArgs = {
   leadingSpaceGroupId?: symbol[] | symbol
   trailingSpaceGroupId?: symbol[] | symbol

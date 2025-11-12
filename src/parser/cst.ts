@@ -1,7 +1,13 @@
 import * as ohm from 'ohm-js'
 import { toAST } from 'ohm-js/extras'
 
-import { CanvasGrammars, placeholderGrammars, strictGrammars, tolerantGrammars } from './grammar'
+import {
+  CanvasGrammars,
+  placeholderGrammars,
+  strictGrammars,
+  TextNodeGrammer,
+  tolerantGrammars,
+} from './grammar'
 import { Comparators, NamedTags } from './types'
 
 export enum ConcreteNodeTypes {
@@ -420,6 +426,49 @@ function toCST<T>(
   const CanvasMappings: Mapping = {
     canvasNode: 0,
     canvasRawTag: 0,
+    canvasRawTagImpl: {
+      type: ConcreteNodeTypes.CanvasRawTag,
+      name: 3,
+      body: 9,
+      children: (tokens: ohm.Node[]) => {
+        const nameNode = tokens[3]
+        const rawMarkupStringNode = tokens[9]
+        switch (nameNode.sourceString) {
+          case 'verbatim': {
+            return toCST(
+              source,
+              grammars,
+              TextNodeGrammer,
+              ['HelperMappings'],
+              rawMarkupStringNode.sourceString,
+              offset + rawMarkupStringNode.source.startIdx
+            )
+          }
+          default: {
+            return toCST(
+              source,
+              grammars,
+              grammars.Canvas,
+              ['HelperMappings', 'CanvasMappings'],
+              rawMarkupStringNode.sourceString,
+              offset + rawMarkupStringNode.source.startIdx
+            )
+          }
+        }
+      },
+      markup: 6,
+      whitespaceStart: 1,
+      whitespaceEnd: 7,
+      delimiterWhitespaceStart: 11,
+      delimiterWhitespaceEnd: 17,
+      locStart,
+      locEnd,
+      source,
+      blockStartLocStart: (tokens: ohm.Node[]) => tokens[0].source.startIdx,
+      blockStartLocEnd: (tokens: ohm.Node[]) => tokens[8].source.endIdx,
+      blockEndLocStart: (tokens: ohm.Node[]) => tokens[10].source.startIdx,
+      blockEndLocEnd: (tokens: ohm.Node[]) => tokens[18].source.endIdx,
+    },
 
     canvasTagOpen: 0,
     canvasTagOpenStrict: 0,
