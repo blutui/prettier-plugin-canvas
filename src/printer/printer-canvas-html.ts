@@ -20,6 +20,7 @@ import type {
   HtmlDanglingMarkerClose,
   HtmlElement,
   HtmlRawNode,
+  HtmlSelfClosingElement,
   HtmlVoidElement,
   RawMarkup,
   TextNode,
@@ -167,8 +168,7 @@ function printNode(
     }
 
     case NodeTypes.HtmlSelfClosingElement: {
-      console.log('print:', NodeTypes.HtmlSelfClosingElement)
-      return ''
+      return printElement(path as AstPath<HtmlSelfClosingElement>, options, print, args)
     }
 
     case NodeTypes.HtmlRawNode: {

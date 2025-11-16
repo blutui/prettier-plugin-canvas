@@ -834,6 +834,15 @@ function toCST<T>(
       source,
     },
 
+    HtmlSelfClosingElement: {
+      type: ConcreteNodeTypes.HtmlSelfClosingElement,
+      name: 1,
+      attrList: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+
     HtmlTagOpen: {
       type: ConcreteNodeTypes.HtmlTagOpen,
       name: 1,
