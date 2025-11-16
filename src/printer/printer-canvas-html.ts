@@ -13,6 +13,7 @@ import type {
   CanvasParserOptions,
   CanvasPrinter,
   CanvasPrinterArgs,
+  CanvasRawTag,
   CanvasTag,
   CanvasVariableOutput,
   DocumentNode,
@@ -24,11 +25,23 @@ import type {
   RawMarkup,
   TextNode,
 } from '@/types'
-import { getConditionalComment, NodeTypes, Position } from '@/parser'
+import {
+  getConditionalComment,
+  NodeTypes,
+  nonTraversableProperties,
+  Position,
+  RawMarkupKinds,
+} from '@/parser'
 import { assertNever } from '@/utils'
 
+import { embed } from './embed'
 import { preprocess } from './print-preprocess'
-import { printCanvasBranch, printCanvasTag, printCanvasVariableOutput } from './print/canvas'
+import {
+  printCanvasBranch,
+  printCanvasRawTag,
+  printCanvasTag,
+  printCanvasVariableOutput,
+} from './print/canvas'
 import { printChildren } from './print/children'
 import { printElement } from './print/element'
 import { bodyLines, hasLineBreakInRange, isEmpty, isTextLikeNode, reindent } from './utils'
@@ -163,12 +176,11 @@ function printNode(
     }
 
     case NodeTypes.RawMarkup: {
-      if (node.parentNode?.name === 'doc') {
-        return printCanvasDoc(path as AstPath<RawMarkup>, options, print, args)
-      }
-
       const isRawMarkupIdentationSensitive = () => {
         switch (node.kind) {
+          case RawMarkupKinds.javascript: {
+            return node.value.includes('`')
+          }
           default: {
             return false
           }
@@ -179,9 +191,6 @@ function printNode(
         return [node.value.trimEnd(), hardline]
       }
 
-      const parentNode = node.parentNode
-      const shouldNotIndentBody = parentNode && parentNode.type === NodeTypes.CanvasRawTag
-      const shouldIndentBody = !shouldNotIndentBody
       const lines = bodyLines(node.value)
       const rawFirstLineIsntIndented = !!node.value.split(/\r?\n/)[0]?.match(/\S/)
       const shouldSkipFirstLine = rawFirstLineIsntIndented
@@ -191,11 +200,7 @@ function printNode(
           ? join(hardline, reindent(lines, shouldSkipFirstLine))
           : softline
 
-      if (shouldIndentBody) {
-        return [indent([hardline, body]), hardline]
-      } else {
-        return [dedentToRoot([hardline, body]), hardline]
-      }
+      return [indent([hardline, body]), hardline]
     }
 
     case NodeTypes.CanvasVariableOutput: {
@@ -203,8 +208,7 @@ function printNode(
     }
 
     case NodeTypes.CanvasRawTag: {
-      console.log('print:', NodeTypes.CanvasRawTag)
-      return ''
+      return printCanvasRawTag(path as AstPath<CanvasRawTag>, options, print, args)
     }
 
     case NodeTypes.CanvasTag: {
@@ -491,5 +495,23 @@ function printNode(
 
 export const printerCanvasHtml: Printer<CanvasHtmlNode> = {
   print: printNode,
+  embed: embed,
   preprocess: preprocess as any,
+  getVisitorKeys(node, nonTraversableKeys) {
+    return Object.keys(node).filter(
+      (key) =>
+        !nonTraversableKeys.has(key) &&
+        !nonTraversableProperties.has(key) &&
+        hasOrIsNode(node, key as keyof CanvasHtmlNode)
+    )
+  },
+}
+
+function hasOrIsNode<N extends CanvasHtmlNode, K extends keyof N>(node: N, key: K) {
+  const v = node[key]
+  return Array.isArray(v) || isNode(v)
+}
+
+function isNode(x: unknown): x is CanvasHtmlNode {
+  return x !== null && typeof x === 'object' && 'type' in x && typeof x.type === 'string'
 }

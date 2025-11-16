@@ -363,7 +363,10 @@ export interface HtmlRawNode extends HtmlNodeBase<NodeTypes.HtmlRawNode> {
 }
 
 export enum RawMarkupKinds {
-  verbatim = 'verbatim',
+  css = 'css',
+  html = 'html',
+  javascript = 'javascript',
+  json = 'json',
   text = 'text',
 }
 

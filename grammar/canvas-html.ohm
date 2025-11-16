@@ -1,32 +1,32 @@
 Helpers {
-	Node = TextNode*
-    TextNode = AnyExceptPlus<openControl>
-    openControl = end
+  Node = TextNode*
+  TextNode = AnyExceptPlus<openControl>
+  openControl = end
 
-    empty = /* nothing */
-    anyExcept<lit> = (~ lit any)
-    anyExceptStar<lit> = (~ lit any)*
-    anyExceptPlus<lit> = (~ lit any)+
-    AnyExcept<lit> = (~ lit any)
-    AnyExceptStar<lit> = (~ lit any)*
-    AnyExceptPlus<lit> = (~ lit any)+
-    identifierCharacter = alnum | "_" | "-"
+  empty = /* nothing */
+  anyExcept<lit> = (~ lit any)
+  anyExceptStar<lit> = (~ lit any)*
+  anyExceptPlus<lit> = (~ lit any)+
+  AnyExcept<lit> = (~ lit any)
+  AnyExceptStar<lit> = (~ lit any)*
+  AnyExceptPlus<lit> = (~ lit any)+
+  identifierCharacter = alnum | "_" | "-"
 
-    orderedListOf<a, b, sep> =
-        | nonemptyOrderedListOf<a, b, sep>
-        | emptyListOf<a, sep>
-    nonemptyOrderedListOf<a, b, sep> =
-        | nonemptyListOf<b, sep>
-        | nonemptyOrderedListOfBoth<a, b, sep>
-        | nonemptyListOf<a, sep>
-    nonemptyOrderedListOfBoth<a, b, sep> =
-        nonemptyListOf<a, sep> (sep nonemptyListOf<b, sep>)
+  orderedListOf<a, b, sep> =
+    | nonemptyOrderedListOf<a, b, sep>
+    | emptyListOf<a, sep>
+  nonemptyOrderedListOf<a, b, sep> =
+    | nonemptyListOf<b, sep>
+    | nonemptyOrderedListOfBoth<a, b, sep>
+    | nonemptyListOf<a, sep>
+  nonemptyOrderedListOfBoth<a, b, sep> =
+    nonemptyListOf<a, sep> (sep nonemptyListOf<b, sep>)
 
-    singleQuote = "'"
-    doubleQuote = "\""
-    controls = "\u{007F}".."\u{009F}"
-    noncharacters = "\u{FDD0}".."\u{FDEF}"
-    newline = "\r"? "\n"
+  singleQuote = "'"
+  doubleQuote = "\""
+  controls = "\u{007F}".."\u{009F}"
+  noncharacters = "\u{FDD0}".."\u{FDEF}"
+  newline = "\r"? "\n"
 }
 
 Canvas <: Helpers {
@@ -38,6 +38,7 @@ Canvas <: Helpers {
 
     canvasNode =
     	| canvasComment
+      | canvasRawTag
     	| canvasOutput
     	| canvasTagClose
       | canvasTagOpen
@@ -137,20 +138,29 @@ Canvas <: Helpers {
     	canvasExpression<delim> space* comparator space* canvasExpression<delim>
     comparator =
     	( "<=>"
-        | "=="
-        | "!="
-        | ">="
-        | "<="
-        | ">"
-        | "<"
-        | "in"
-        | "not in")
+      | "=="
+      | "!="
+      | ">="
+      | "<="
+      | ">"
+      | "<"
+      | "in"
+      | "not in")
 
     canvasTestExpression<delim> = canvasExpression<delim> space* ("is" | "is not") space* testOperator (space* "(" space* arguments<delim>? space* ")")?
 
     canvasOutput = "{{" "-"? space* canvasOutputCases "-"? "}}"
     canvasOutputCases = canvasVariable<delimVO> | canvasOutputBaseCase
     canvasOutputBaseCase = anyExceptStar<delimVO>
+
+    canvasRawTag =
+      | canvasRawTagImpl<"verbatim">
+    canvasRawTagImpl<name> =
+      "{%" "-"? space* (name endOfIdentifier) space* tagMarkup "-"? "%}"
+      anyExceptStar<canvasRawTagClose<name>>
+      "{%" "-"? space* "end" (name endOfIdentifier) space* "-"? "%}"
+    canvasRawTagClose<name> =
+      "{%" "-"? space* "end" (name endOfIdentifier) space* "-"? "%}"
 
     canvasComment = "{#" space* anyExceptStar<"#}"> space* "#}"
 
@@ -266,11 +276,11 @@ CanvasHTML <: Canvas {
     HtmlNode =
     	| HtmlDoctype
     	| HtmlComment
-        | HtmlRawTag
+      | HtmlRawTag
     	| HtmlVoidElement
     	| HtmlSelfClosingElement
     	| HtmlTagClose
-        | HtmlTagOpen
+      | HtmlTagOpen
 
     // https://html.spec.whatwg.org/multipage/syntax.html#the-doctype
    	HtmlDoctype =
@@ -282,8 +292,8 @@ CanvasHTML <: Canvas {
     // These are black holes, we'll ignore what's in them
     HtmlRawTag =
     	| HtmlRawTagImpl<"script">
-        | HtmlRawTagImpl<"style">
-        | HtmlRawTagImpl<"svg">
+      | HtmlRawTagImpl<"style">
+      | HtmlRawTagImpl<"svg">
 
     HtmlRawTagImpl<name> =
     	TagStart<name>
@@ -366,4 +376,7 @@ CanvasHTML <: Canvas {
         | caseInsensitive<"track">
         | caseInsensitive<"wbr">
         ) ~identifierCharacter
+}
+
+StrictCanvasHTML <: CanvasHTML {
 }
