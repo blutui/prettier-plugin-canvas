@@ -23,16 +23,16 @@
   },
   "dependencies": {
     "html-styles": "^1.0.0",
-    "ohm-js": "^17.1.0"
+    "ohm-js": "^17.2.1"
   },
   "peerDependencies": {
     "prettier": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.9.1",
-    "tsup": "^8.3.5",
-    "typescript": "^5.7.2",
-    "vitest": "^4.0.1"
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.10"
   },
   "volta": {
     "node": "24.11.0"
