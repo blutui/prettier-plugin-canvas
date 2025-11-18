@@ -35,7 +35,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install
+          pnpm install
 
       - name: Build OHM Grammar
         run: |
@@ -43,4 +43,4 @@ jobs:
 
       - name: Run tests
         run: |
-          npm run test
+          pnpm test
