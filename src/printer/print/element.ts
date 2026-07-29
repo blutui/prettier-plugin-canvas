@@ -75,7 +75,6 @@ export function printElement(
   }
 
   if (shouldPreserveContent(node)) {
-    console.log('shouldPreserveContent')
   }
 
   const printTag = (doc: Doc) =>

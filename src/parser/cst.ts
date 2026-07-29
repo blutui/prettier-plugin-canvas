@@ -19,6 +19,7 @@ export enum ConcreteNodeTypes {
   HtmlTagOpen = 'HtmlTagOpen',
   HtmlTagClose = 'HtmlTagClose',
   CanvasVariableOutput = 'CanvasVariableOutput',
+  CanvasComment = 'CanvasComment',
   CanvasRawTag = 'CanvasRawTag',
   CanvasTag = 'CanvasTag',
   CanvasTagOpen = 'CanvasTagOpen',
@@ -44,9 +45,20 @@ export enum ConcreteNodeTypes {
   ArrowFunction = 'ArrowFunction',
   Comparison = 'Comparison',
   Condition = 'Condition',
+  TestExpression = 'TestExpression',
+  TernaryExpression = 'TernaryExpression',
 
   IncludeMarkup = 'IncludeMarkup',
   SetMarkup = 'SetMarkup',
+  ForMarkup = 'ForMarkup',
+  ApplyMarkup = 'ApplyMarkup',
+  AutoescapeMarkup = 'AutoescapeMarkup',
+  WithMarkup = 'WithMarkup',
+  FormMarkup = 'FormMarkup',
+  MacroMarkup = 'MacroMarkup',
+  MacroParameter = 'MacroParameter',
+  BlockMarkup = 'BlockMarkup',
+  GuardMarkup = 'GuardMarkup',
 
   IncludeWithClause = 'IncludeWithClause',
   IncludeOnlyClause = 'IncludeOnlyClause',
@@ -131,10 +143,18 @@ export type ConcreteCanvasNode =
   | ConcreteCanvasTagClose
   | ConcreteCanvasTag
   | ConcreteCanvasVariableOutput
+  | ConcreteCanvasComment
+
+export type ConcreteCanvasTrim = null | '-' | '~'
 
 interface ConcreteBasicCanvasNode<T> extends ConcreteBasicNode<T> {
-  whitespaceStart: null | '-'
-  whitespaceEnd: null | '-'
+  whitespaceStart: ConcreteCanvasTrim
+  whitespaceEnd: ConcreteCanvasTrim
+}
+
+export interface ConcreteCanvasComment
+  extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasComment> {
+  body: string
 }
 
 export interface ConcreteCanvasRawTag
@@ -143,8 +163,8 @@ export interface ConcreteCanvasRawTag
   body: string
   children: (ConcreteTextNode | ConcreteCanvasNode)[]
   markup: string
-  delimiterWhitespaceStart: null | '-'
-  delimiterWhitespaceEnd: null | '-'
+  delimiterWhitespaceStart: ConcreteCanvasTrim
+  delimiterWhitespaceEnd: ConcreteCanvasTrim
   blockStartLocStart: number
   blockStartLocEnd: number
   blockEndLocStart: number
@@ -152,7 +172,17 @@ export interface ConcreteCanvasRawTag
 }
 
 export type ConcreteCanvasTagOpen = ConcreteCanvasTagOpenBaseCase | ConcreteCanvasTagOpenNamed
-export type ConcreteCanvasTagOpenNamed = ConcreteCanvasTagOpenIf
+export type ConcreteCanvasTagOpenNamed =
+  | ConcreteCanvasTagOpenIf
+  | ConcreteCanvasTagOpenEmbed
+  | ConcreteCanvasTagOpenFor
+  | ConcreteCanvasTagOpenApply
+  | ConcreteCanvasTagOpenAutoescape
+  | ConcreteCanvasTagOpenWith
+  | ConcreteCanvasTagOpenForm
+  | ConcreteCanvasTagOpenMacro
+  | ConcreteCanvasTagOpenBlock
+  | ConcreteCanvasTagOpenGuard
 
 export interface ConcreteCanvasTagOpenNode<Name, Markup>
   extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasTagOpen> {
@@ -164,12 +194,95 @@ export interface ConcreteCanvasTagOpenBaseCase extends ConcreteCanvasTagOpenNode
 
 export interface ConcreteCanvasTagOpenIf
   extends ConcreteCanvasTagOpenNode<NamedTags.if, ConcreteCanvasCondition[]> {}
+export interface ConcreteCanvasTagOpenEmbed
+  extends ConcreteCanvasTagOpenNode<NamedTags.embed, ConcreteCanvasTagIncludeMarkup> {}
+export interface ConcreteCanvasTagOpenFor
+  extends ConcreteCanvasTagOpenNode<NamedTags.for, ConcreteCanvasTagForMarkup> {}
+
+export interface ConcreteCanvasTagOpenApply
+  extends ConcreteCanvasTagOpenNode<
+    NamedTags.apply | NamedTags.filter,
+    ConcreteCanvasApplyMarkup
+  > {}
+export interface ConcreteCanvasTagOpenAutoescape
+  extends ConcreteCanvasTagOpenNode<NamedTags.autoescape, ConcreteCanvasAutoescapeMarkup> {}
+export interface ConcreteCanvasTagOpenWith
+  extends ConcreteCanvasTagOpenNode<NamedTags.with, ConcreteCanvasWithMarkup> {}
+export interface ConcreteCanvasTagOpenForm
+  extends ConcreteCanvasTagOpenNode<NamedTags.form, ConcreteCanvasFormMarkup> {}
+export interface ConcreteCanvasTagOpenMacro
+  extends ConcreteCanvasTagOpenNode<NamedTags.macro, ConcreteCanvasMacroMarkup> {}
+
+export interface ConcreteCanvasTagOpenBlock
+  extends ConcreteCanvasTagOpenNode<NamedTags.block, ConcreteCanvasBlockMarkup> {}
+export interface ConcreteCanvasTagOpenGuard
+  extends ConcreteCanvasTagOpenNode<NamedTags.guard, ConcreteCanvasGuardMarkup> {}
+
+export interface ConcreteCanvasBlockMarkup
+  extends ConcreteBasicNode<ConcreteNodeTypes.BlockMarkup> {
+  name: string
+  value: ConcreteCanvasVariable | null
+}
+
+export interface ConcreteCanvasGuardMarkup
+  extends ConcreteBasicNode<ConcreteNodeTypes.GuardMarkup> {
+  kind: 'filter' | 'function' | 'test'
+  name: string
+}
+
+export interface ConcreteCanvasApplyMarkup
+  extends ConcreteBasicNode<ConcreteNodeTypes.ApplyMarkup> {
+  initial: ConcreteCanvasFilter
+  filters: ConcreteCanvasFilter[] | null
+}
+
+export interface ConcreteCanvasAutoescapeMarkup
+  extends ConcreteBasicNode<ConcreteNodeTypes.AutoescapeMarkup> {
+  strategy: ConcreteCanvasExpression | null
+}
+
+export interface ConcreteCanvasWithMarkup extends ConcreteBasicNode<ConcreteNodeTypes.WithMarkup> {
+  context: ConcreteCanvasExpression | null
+  onlyClause: ConcreteIncludeOnlyClause
+}
+
+export interface ConcreteCanvasFormMarkup extends ConcreteBasicNode<ConcreteNodeTypes.FormMarkup> {
+  handle: ConcreteCanvasExpression
+  withClause: ConcreteIncludeWithClause
+}
+
+export interface ConcreteCanvasMacroMarkup
+  extends ConcreteBasicNode<ConcreteNodeTypes.MacroMarkup> {
+  name: string
+  parameters: ConcreteCanvasMacroParameter[] | null
+}
+
+export interface ConcreteCanvasMacroParameter
+  extends ConcreteBasicNode<ConcreteNodeTypes.MacroParameter> {
+  name: string
+  defaultValue: ConcreteCanvasExpression | null
+}
+
+export interface ConcreteCanvasTagForMarkup extends ConcreteBasicNode<ConcreteNodeTypes.ForMarkup> {
+  /** `[value]` or `[key, value]` */
+  variables: string | string[]
+  collection: ConcreteCanvasVariable | ConcreteCanvasRange
+}
 export interface ConcreteCanvasTagElseIf
   extends ConcreteCanvasTagNode<NamedTags.elseif, ConcreteCanvasCondition[]> {}
 
 export interface ConcreteCanvasCondition extends ConcreteBasicNode<ConcreteNodeTypes.Condition> {
-  relation: 'and' | 'or' | null
-  expression: ConcreteCanvasComparison | ConcreteCanvasExpression
+  relation: 'and' | 'or' | 'not' | null
+  expression: ConcreteCanvasComparison | ConcreteCanvasTestExpression | ConcreteCanvasExpression
+}
+
+/** `expression is [not] testName(args)` */
+export interface ConcreteCanvasTestExpression
+  extends ConcreteBasicNode<ConcreteNodeTypes.TestExpression> {
+  expression: ConcreteCanvasExpression
+  negate: boolean
+  name: string
+  args: ConcreteCanvasArgument[] | null
 }
 
 export interface ConcreteCanvasComparison extends ConcreteBasicNode<ConcreteNodeTypes.Comparison> {
@@ -181,6 +294,8 @@ export interface ConcreteCanvasComparison extends ConcreteBasicNode<ConcreteNode
 export interface ConcreteCanvasTagClose
   extends ConcreteBasicCanvasNode<ConcreteNodeTypes.CanvasTagClose> {
   name: string
+  /** The optional name repeated on the closing tag, eg. `{% endblock title %}` */
+  markup: string
 }
 
 export type ConcreteCanvasTag = ConcreteCanvasTagNamed | ConcreteCanvasTagBaseCase
@@ -253,6 +368,8 @@ export type ConcreteCanvasArgument = ConcreteCanvasExpression | ConcreteCanvasNa
 export interface ConcreteCanvasNamedArgument
   extends ConcreteBasicNode<ConcreteNodeTypes.NamedArgument> {
   name: ConcreteCanvasExpression
+  /** `=` in a function call's named argument, `:` in a hash literal */
+  separator: '=' | ':'
   value: ConcreteCanvasExpression
 }
 
@@ -267,7 +384,16 @@ export type ConcreteCanvasExpression =
   | ConcreteCanvasFunction
   | ConcreteCanvasArrowFunction
   | ConcreteCanvasComparison
+  | ConcreteCanvasTernaryExpression
   | ConcreteCanvasVariableLookup
+
+/** `condition ? consequent : alternate` */
+export interface ConcreteCanvasTernaryExpression
+  extends ConcreteBasicNode<ConcreteNodeTypes.TernaryExpression> {
+  condition: ConcreteCanvasExpression
+  consequent: ConcreteCanvasExpression
+  alternate: ConcreteCanvasExpression
+}
 
 export interface ConcreteCanvasConcatenation
   extends ConcreteBasicNode<ConcreteNodeTypes.Concatenation> {
@@ -292,6 +418,7 @@ export interface ConcreteCanvasLiteral extends ConcreteBasicNode<ConcreteNodeTyp
 export interface ConcreteCanvasRange extends ConcreteBasicNode<ConcreteNodeTypes.Range> {
   start: ConcreteCanvasExpression
   end: ConcreteCanvasExpression
+  parenthesized: boolean
 }
 
 export interface ConcreteCanvasSequence extends ConcreteBasicNode<ConcreteNodeTypes.Sequence> {
@@ -310,6 +437,7 @@ export interface ConcreteCanvasFunction extends ConcreteBasicNode<ConcreteNodeTy
 export interface ConcreteCanvasArrowFunction
   extends ConcreteBasicNode<ConcreteNodeTypes.ArrowFunction> {
   args: ConcreteCanvasArgument[]
+  parenthesized: boolean
   expression: ConcreteCanvasExpression
 }
 
@@ -460,14 +588,26 @@ function toCST<T>(
       whitespaceStart: 1,
       whitespaceEnd: 7,
       delimiterWhitespaceStart: 11,
-      delimiterWhitespaceEnd: 17,
+      delimiterWhitespaceEnd: 18,
       locStart,
       locEnd,
       source,
       blockStartLocStart: (tokens: ohm.Node[]) => tokens[0].source.startIdx,
       blockStartLocEnd: (tokens: ohm.Node[]) => tokens[8].source.endIdx,
       blockEndLocStart: (tokens: ohm.Node[]) => tokens[10].source.startIdx,
-      blockEndLocEnd: (tokens: ohm.Node[]) => tokens[18].source.endIdx,
+      blockEndLocEnd: (tokens: ohm.Node[]) => tokens[19].source.endIdx,
+    },
+
+    canvasTrim: 0,
+
+    canvasComment: {
+      type: ConcreteNodeTypes.CanvasComment,
+      body: 2,
+      whitespaceStart: 1,
+      whitespaceEnd: 3,
+      locStart,
+      locEnd,
+      source,
     },
 
     canvasTagOpen: 0,
@@ -491,14 +631,142 @@ function toCST<T>(
       source,
     },
 
+    canvasTagOpenApply: 0,
+    canvasTagOpenAutoescape: 0,
     canvasTagOpenBlock: 0,
     canvasTagOpenFor: 0,
+    canvasTagOpenGuard: 0,
     canvasTagOpenIf: 0,
+    canvasTagOpenEmbed: 0,
+    canvasTagOpenFilter: 0,
+    canvasTagOpenForm: 0,
+    canvasTagOpenMacro: 0,
+    canvasTagOpenWith: 0,
+    canvasTagOpenBlockMarkup: {
+      type: ConcreteNodeTypes.BlockMarkup,
+      name: 1,
+      value: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+    blockShortcutValue: 1,
+    canvasTagOpenGuardMarkup: {
+      type: ConcreteNodeTypes.GuardMarkup,
+      kind: 1,
+      name: 3,
+      locStart,
+      locEnd,
+      source,
+    },
+    guardKind: 0,
+    canvasTagOpenApplyMarkup: {
+      type: ConcreteNodeTypes.ApplyMarkup,
+      initial: 1,
+      filters: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+    initialFilter: {
+      type: ConcreteNodeTypes.CanvasFilter,
+      name: 0,
+      args(nodes: ohm.Node[]) {
+        if (nodes[1].sourceString === '') {
+          return []
+        } else {
+          return nodes[1].toAST((this as any).args.mapping)
+        }
+      },
+      locStart,
+      locEnd,
+      source,
+    },
+    additionalFilters: 0,
+    canvasTagOpenAutoescapeMarkup: {
+      type: ConcreteNodeTypes.AutoescapeMarkup,
+      strategy: 0,
+      locStart,
+      locEnd,
+      source,
+    },
+    canvasTagOpenWithMarkup: {
+      type: ConcreteNodeTypes.WithMarkup,
+      context: 1,
+      onlyClause: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+    canvasTagOpenFormMarkup: {
+      type: ConcreteNodeTypes.FormMarkup,
+      handle: 1,
+      withClause: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+    canvasTagOpenMacroMarkup: {
+      type: ConcreteNodeTypes.MacroMarkup,
+      name: 1,
+      parameters: 5,
+      locStart,
+      locEnd,
+      source,
+    },
+    macroParameterList: 0,
+    macroParameterDefault: 3,
+    macroParameter: {
+      type: ConcreteNodeTypes.MacroParameter,
+      name: 0,
+      defaultValue: 1,
+      locStart,
+      locEnd,
+      source,
+    },
+    canvasTagOpenForMarkup: {
+      type: ConcreteNodeTypes.ForMarkup,
+      variables: 0,
+      collection: 4,
+      locStart,
+      locEnd,
+      source,
+    },
+    keyValueIteration: 0,
+    keyValueSegment: (
+      key: ohm.Node,
+      _s1: ohm.Node,
+      _c: ohm.Node,
+      _s2: ohm.Node,
+      value: ohm.Node
+    ) => [key.sourceString, value.sourceString],
+    canvasTagOpenSet: 0,
+    canvasTagOpenSetMarkup: (name: ohm.Node, _space: ohm.Node) => name.sourceString.trim(),
     canvasTagOpenConditionalMarkup: 0,
     condition: {
       type: ConcreteNodeTypes.Condition,
       relation: 0,
       expression: 2,
+      locStart,
+      locEnd,
+      source,
+    },
+    canvasTestExpression: {
+      type: ConcreteNodeTypes.TestExpression,
+      expression: 0,
+      negate: (tokens: ohm.Node[]) => tokens[2].sourceString.trim() === 'is not',
+      name: (tokens: ohm.Node[]) => tokens[4].sourceString.trim(),
+      args: 5,
+      locStart,
+      locEnd,
+      source,
+    },
+    canvasTestArguments: 3,
+    canvasTernaryOperator: {
+      type: ConcreteNodeTypes.TernaryExpression,
+      condition: 0,
+      consequent: 4,
+      alternate: 8,
       locStart,
       locEnd,
       source,
@@ -516,6 +784,7 @@ function toCST<T>(
     canvasTagClose: {
       type: ConcreteNodeTypes.CanvasTagClose,
       name: 4,
+      markup: 6,
       whitespaceStart: 1,
       whitespaceEnd: 7,
       locStart,
@@ -529,6 +798,7 @@ function toCST<T>(
     canvasTagDo: 0,
     canvasTagExtends: 0,
     canvasTagElse: 0,
+    canvasTagElseif: 0,
     canvasTagInclude: 0,
     canvasTagSet: 0,
     canvasTagRule: {
@@ -633,6 +903,7 @@ function toCST<T>(
     namedArgument: {
       type: ConcreteNodeTypes.NamedArgument,
       name: 0,
+      separator: 2,
       value: 4,
       locStart,
       locEnd,
@@ -686,9 +957,21 @@ function toCST<T>(
       source,
     },
 
+    canvasForCollection: 0,
+    canvasRangeOperand: 0,
+    canvasBareRange: {
+      type: ConcreteNodeTypes.Range,
+      start: 0,
+      parenthesized: () => false,
+      end: 4,
+      locStart,
+      locEnd,
+      source,
+    },
     canvasRange: {
       type: ConcreteNodeTypes.Range,
       start: 2,
+      parenthesized: () => true,
       end: 6,
       locStart,
       locEnd,
@@ -732,8 +1015,19 @@ function toCST<T>(
       source,
     },
 
-    canvasArrowFunction: {
+    canvasArrowFunction: 0,
+    canvasArrowFunctionBare: {
       type: ConcreteNodeTypes.ArrowFunction,
+      args: 0,
+      parenthesized: () => false,
+      expression: 4,
+      locStart,
+      locEnd,
+      source,
+    },
+    canvasArrowFunctionParenthesized: {
+      type: ConcreteNodeTypes.ArrowFunction,
+      parenthesized: () => true,
       args(nodes: ohm.Node[]) {
         if (nodes[2].sourceString === '') {
           return []
@@ -786,6 +1080,18 @@ function toCST<T>(
       const node: ohm.Node[] = []
 
       return node.concat(nodes.toAST(self.args.mapping))
+    },
+
+    HtmlDoctype: {
+      type: ConcreteNodeTypes.HtmlDoctype,
+      // The optional legacy string sits just before the closing `>`.
+      legacyDoctypeString: (nodes: ohm.Node[]) => {
+        const legacy = nodes[nodes.length - 2]
+        return legacy && legacy.sourceString !== '' ? legacy.sourceString : null
+      },
+      locStart,
+      locEnd,
+      source,
     },
 
     HtmlComment: {

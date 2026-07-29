@@ -24,11 +24,23 @@ export const CSS_DISPLAY_CANVAS_TAGS: Record<string, string> = {
   if: 'inline',
   else: 'inline',
   elseif: 'inline',
+  guard: 'inline',
 
   // iteration tags
   for: 'inline',
 
+  // template structure tags
   block: 'block',
+  embed: 'block',
+  macro: 'block',
+  form: 'block',
+  canopy: 'block',
+
+  // output filtering tags
+  apply: 'inline',
+  filter: 'inline',
+  autoescape: 'inline',
+  with: 'inline',
 
   // variable tags
   set: 'none',
