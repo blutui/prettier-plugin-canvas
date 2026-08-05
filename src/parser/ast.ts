@@ -18,11 +18,21 @@ import {
   ConcreteCanvasTag,
   ConcreteCanvasTagBaseCase,
   ConcreteCanvasTagClose,
+  ConcreteCanvasApplyMarkup,
+  ConcreteCanvasBlockMarkup,
+  ConcreteCanvasGuardMarkup,
+  ConcreteCanvasAutoescapeMarkup,
+  ConcreteCanvasFormMarkup,
+  ConcreteCanvasMacroMarkup,
+  ConcreteCanvasMacroParameter,
+  ConcreteCanvasTagForMarkup,
+  ConcreteCanvasWithMarkup,
   ConcreteCanvasTagIncludeMarkup,
   ConcreteCanvasTagNamed,
   ConcreteCanvasTagOpen,
   ConcreteCanvasTagOpenNamed,
   ConcreteCanvasTagSetMarkup,
+  ConcreteCanvasTestExpression,
   ConcreteCanvasVariable,
   ConcreteCanvasVariableOutput,
   ConcreteHtmlRawTag,
@@ -53,11 +63,22 @@ import {
   CanvasExpression,
   CanvasFilter,
   CanvasHtmlNode,
+  CanvasRange,
+  ForMarkup,
+  ApplyMarkup,
+  AutoescapeMarkup,
+  BlockMarkup,
+  GuardMarkup,
+  WithMarkup,
+  FormMarkup,
+  MacroMarkup,
+  MacroParameter,
   CanvasNamedArgument,
   CanvasNode,
   CanvasString,
   CanvasTag,
   CanvasTagNamed,
+  CanvasTestExpression,
   CanvasVariable,
   CanvasVariableLookup,
   CanvasVariableOutput,
@@ -196,9 +217,9 @@ export class ASTBuilder {
     if (getName(this.parent) !== getName(node) || this.parent.type !== nodeType) {
       const suitableParent = this.findCloseableParentNode(node)
 
-      if (this.parent.type === NodeTypes.HtmlElement && suitableParent) {
-        console.log('parent', suitableParent)
-      } else {
+      // A close tag may legitimately appear while an HTML element is still
+      // open, as long as an enclosing node can accept it.
+      if (this.parent.type !== NodeTypes.HtmlElement || !suitableParent) {
         throw new Error(
           `Attempting to close ${nodeType} '${getName(node)} before ${this.parent.type} '${getName(this.parent)}' was closed`
         )
@@ -211,6 +232,7 @@ export class ASTBuilder {
     if (this.parent.type == NodeTypes.CanvasTag && node.type == ConcreteNodeTypes.CanvasTagClose) {
       this.parent.delimiterWhitespaceStart = node.whitespaceStart ?? ''
       this.parent.delimiterWhitespaceEnd = node.whitespaceEnd ?? ''
+      this.parent.delimiterMarkup = node.markup?.trim() || undefined
     }
     this.cursor.pop()
     this.cursor.pop()
@@ -355,6 +377,18 @@ function buildAst(
         break
       }
 
+      case ConcreteNodeTypes.CanvasComment: {
+        builder.push({
+          type: NodeTypes.CanvasComment,
+          body: node.body,
+          whitespaceStart: node.whitespaceStart ?? '',
+          whitespaceEnd: node.whitespaceEnd ?? '',
+          position: position(node),
+          source: node.source,
+        })
+        break
+      }
+
       case ConcreteNodeTypes.CanvasRawTag: {
         builder.push({
           type: NodeTypes.CanvasRawTag,
@@ -404,7 +438,12 @@ function buildAst(
       }
 
       case ConcreteNodeTypes.HtmlDoctype: {
-        console.log('push HtmlDoctype')
+        builder.push({
+          type: NodeTypes.HtmlDoctype,
+          legacyDoctypeString: node.legacyDoctypeString,
+          position: position(node),
+          source: node.source,
+        })
         break
       }
 
@@ -591,6 +630,95 @@ function toNamedCanvasTag(
       }
     }
 
+    case NamedTags.embed: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toIncludeMarkup(node.markup),
+        children: [],
+      }
+    }
+
+    case NamedTags.for: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toForMarkup(node.markup),
+        children: [],
+      }
+    }
+
+    case NamedTags.block: {
+      const markup = toBlockMarkup(node.markup)
+
+      // The shortcut form has no body, so it must not be treated as a block.
+      if (markup.value) {
+        return { ...canvasTagBaseAttributes(node), name: node.name, markup }
+      }
+
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup,
+        children: [],
+      }
+    }
+
+    case NamedTags.guard: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toGuardMarkup(node.markup),
+        children: [],
+      }
+    }
+
+    case NamedTags.apply:
+    case NamedTags.filter: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toApplyMarkup(node.markup),
+        children: [],
+      }
+    }
+
+    case NamedTags.autoescape: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toAutoescapeMarkup(node.markup),
+        children: [],
+      }
+    }
+
+    case NamedTags.with: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toWithMarkup(node.markup),
+        children: [],
+      }
+    }
+
+    case NamedTags.form: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toFormMarkup(node.markup),
+        children: [],
+      }
+    }
+
+    case NamedTags.macro: {
+      return {
+        ...canvasTagBaseAttributes(node),
+        name: node.name,
+        markup: toMacroMarkup(node.markup),
+        children: [],
+      }
+    }
+
     case NamedTags.set: {
       return {
         ...canvasTagBaseAttributes(node),
@@ -660,6 +788,103 @@ function toIncludeMarkup(node: ConcreteCanvasTagIncludeMarkup): IncludeMarkup {
     ignoreMissing: node.ignoreMissing,
     withClause: toIncludeWithClause(node.withClause),
     onlyClause: toIncludeOnlyClause(node.onlyClause),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toForMarkup(node: ConcreteCanvasTagForMarkup): ForMarkup {
+  const variables = Array.isArray(node.variables) ? node.variables : [node.variables]
+
+  // `{% for x in collection %}` takes a canvasVariable (expression + filters),
+  // `{% for i in (0..10) %}` a bare range expression.
+  const collection =
+    node.collection.type === ConcreteNodeTypes.CanvasVariable
+      ? toCanvasVariable(node.collection)
+      : (toExpression(node.collection) as CanvasRange)
+
+  return {
+    type: NodeTypes.ForMarkup,
+    variables,
+    collection,
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toBlockMarkup(node: ConcreteCanvasBlockMarkup): BlockMarkup {
+  return {
+    type: NodeTypes.BlockMarkup,
+    name: node.name,
+    value: node.value ? toCanvasVariable(node.value) : null,
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toGuardMarkup(node: ConcreteCanvasGuardMarkup): GuardMarkup {
+  return {
+    type: NodeTypes.GuardMarkup,
+    kind: node.kind,
+    name: node.name,
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toApplyMarkup(node: ConcreteCanvasApplyMarkup): ApplyMarkup {
+  return {
+    type: NodeTypes.ApplyMarkup,
+    filters: [node.initial, ...(node.filters ?? [])].map(toFilter),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toAutoescapeMarkup(node: ConcreteCanvasAutoescapeMarkup): AutoescapeMarkup {
+  return {
+    type: NodeTypes.AutoescapeMarkup,
+    strategy: node.strategy ? toExpression(node.strategy) : null,
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toWithMarkup(node: ConcreteCanvasWithMarkup): WithMarkup {
+  return {
+    type: NodeTypes.WithMarkup,
+    context: node.context ? toExpression(node.context) : null,
+    onlyClause: toIncludeOnlyClause(node.onlyClause),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toFormMarkup(node: ConcreteCanvasFormMarkup): FormMarkup {
+  return {
+    type: NodeTypes.FormMarkup,
+    handle: toExpression(node.handle),
+    withClause: toIncludeWithClause(node.withClause),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toMacroMarkup(node: ConcreteCanvasMacroMarkup): MacroMarkup {
+  return {
+    type: NodeTypes.MacroMarkup,
+    name: node.name,
+    parameters: (node.parameters ?? []).map(toMacroParameter),
+    position: position(node),
+    source: node.source,
+  }
+}
+
+function toMacroParameter(node: ConcreteCanvasMacroParameter): MacroParameter {
+  return {
+    type: NodeTypes.MacroParameter,
+    name: node.name,
+    defaultValue: node.defaultValue ? toExpression(node.defaultValue) : null,
     position: position(node),
     source: node.source,
   }
@@ -756,8 +981,19 @@ function toRawMarkupKindFromHtmlNode(node: ConcreteHtmlRawTag): RawMarkupKinds {
   }
 }
 
+const CANOPY_SECTION_KINDS: Record<string, RawMarkupKinds> = {
+  config: RawMarkupKinds.json,
+  template: RawMarkupKinds.canvas,
+  head: RawMarkupKinds.canvas,
+  scripts: RawMarkupKinds.canvas,
+}
+
 function toRawMarkupKindFromCanvasNode(node: ConcreteCanvasRawTag): RawMarkupKinds {
   switch (node.name) {
+    case 'canopy': {
+      const section = node.markup.trim()
+      return CANOPY_SECTION_KINDS[section] ?? RawMarkupKinds.text
+    }
     default:
       return RawMarkupKinds.text
   }
@@ -765,7 +1001,7 @@ function toRawMarkupKindFromCanvasNode(node: ConcreteCanvasRawTag): RawMarkupKin
 
 function toConditionalExpression(nodes: ConcreteCanvasCondition[]): CanvasConditionalExpression {
   if (nodes.length === 1) {
-    return toComparisonOrExpression(nodes[0])
+    return toPrefixedCondition(nodes[0])
   }
 
   const [first, second] = nodes
@@ -773,7 +1009,7 @@ function toConditionalExpression(nodes: ConcreteCanvasCondition[]): CanvasCondit
   return {
     type: NodeTypes.LogicalExpression,
     relation: second.relation as 'and' | 'or',
-    left: toComparisonOrExpression(first),
+    left: toPrefixedCondition(first),
     right: toConditionalExpression(rest),
     position: {
       start: first.locStart,
@@ -783,15 +1019,50 @@ function toConditionalExpression(nodes: ConcreteCanvasCondition[]): CanvasCondit
   }
 }
 
+/**
+ * The first condition in a list carries its operator as a prefix rather than as
+ * a separator from a previous condition, so `{% if not a %}` would otherwise
+ * lose its `not` and silently invert what the template renders.
+ */
+function toPrefixedCondition(node: ConcreteCanvasCondition): CanvasConditionalExpression {
+  const expression = toComparisonOrExpression(node)
+
+  if (node.relation !== 'not') {
+    return expression
+  }
+
+  return {
+    type: NodeTypes.UnaryExpression,
+    operator: node.relation,
+    expression,
+    position: position(node),
+    source: node.source,
+  }
+}
+
 function toComparisonOrExpression(
   node: ConcreteCanvasCondition
-): CanvasComparison | CanvasExpression {
+): CanvasComparison | CanvasTestExpression | CanvasExpression {
   const expression = node.expression
   switch (expression.type) {
     case ConcreteNodeTypes.Comparison:
       return toComparison(expression)
+    case ConcreteNodeTypes.TestExpression:
+      return toTestExpression(expression)
     default:
       return toExpression(expression)
+  }
+}
+
+function toTestExpression(node: ConcreteCanvasTestExpression): CanvasTestExpression {
+  return {
+    type: NodeTypes.TestExpression,
+    expression: toExpression(node.expression),
+    negate: node.negate,
+    name: node.name,
+    args: (node.args ?? []).map(toCanvasArgument),
+    position: position(node),
+    source: node.source,
   }
 }
 
@@ -874,6 +1145,7 @@ function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
         type: NodeTypes.Range,
         start: toExpression(node.start),
         end: toExpression(node.end),
+        parenthesized: node.parenthesized ?? true,
         position: position(node),
         source: node.source,
       }
@@ -901,6 +1173,17 @@ function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
       return toComparison(node)
     }
 
+    case ConcreteNodeTypes.TernaryExpression: {
+      return {
+        type: NodeTypes.TernaryExpression,
+        condition: toExpression(node.condition),
+        consequent: toExpression(node.consequent),
+        alternate: toExpression(node.alternate),
+        position: position(node),
+        source: node.source,
+      }
+    }
+
     case ConcreteNodeTypes.Function: {
       return {
         type: NodeTypes.Function,
@@ -915,6 +1198,7 @@ function toExpression(node: ConcreteCanvasExpression): CanvasExpression {
       return {
         type: NodeTypes.ArrowFunction,
         args: node.args.map(toCanvasArgument),
+        parenthesized: node.parenthesized ?? true,
         expression: toExpression(node.expression),
         position: position(node),
         source: node.source,
@@ -962,6 +1246,7 @@ function toNamedArgument(node: ConcreteCanvasNamedArgument): CanvasNamedArgument
   return {
     type: NodeTypes.NamedArgument,
     name: toExpression(node.name),
+    separator: node.separator,
     value: toExpression(node.value),
     position: position(node),
     source: node.source,

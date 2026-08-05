@@ -54,8 +54,8 @@ describe('Canvas Tag: Set', () => {
       heredoc`
         {% set z = x
           | filter1(
-              key1: value1,
-              key2: value2
+              key1 = value1,
+              key2 = value2
             )
           | filter2
         %}
@@ -78,8 +78,8 @@ describe('Canvas Tag: Set', () => {
       heredoc`
         {% set z = x
             | filter1(
-                  key1: value1,
-                  key2: value2
+                  key1 = value1,
+                  key2 = value2
               )
             | filter2
         %}
@@ -122,7 +122,7 @@ describe('Canvas Tag: Set', () => {
 
     expect(result).toBe(
       heredoc`
-        {% set z = x | filter1(key1: value1, key2: value2) | filter2 %}
+        {% set z = x | filter1(key1 = value1, key2 = value2) | filter2 %}
       `
     )
   })
@@ -143,8 +143,8 @@ describe('Canvas Tag: Set', () => {
           | filter1(
               pos1,
               pos2,
-              key1: val1,
-              key2: val2
+              key1 = val1,
+              key2 = val2
             )
         %}
       `

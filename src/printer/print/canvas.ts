@@ -134,15 +134,72 @@ function printNamedCanvasBlockStart(
       return tag(trailingWhitespace)
     }
 
-    case NamedTags.include: {
+    case NamedTags.include:
+    case NamedTags.embed: {
       const markup = node.markup
-      const trailingWhitespace = markup.variables && markup.accessible ? line : ' '
+      const trailingWhitespace = markup.withClause || markup.onlyClause ? line : ' '
 
       return tag(trailingWhitespace)
     }
 
     case NamedTags.set: {
       const trailingWhitespace = node.markup.value.filters.length > 0 ? line : ' '
+      return tag(trailingWhitespace)
+    }
+
+    case NamedTags.for: {
+      const collection = node.markup.collection
+      const trailingWhitespace =
+        collection.type === NodeTypes.CanvasVariable && collection.filters.length > 0 ? line : ' '
+
+      return tag(trailingWhitespace)
+    }
+
+    case NamedTags.block: {
+      const trailingWhitespace =
+        node.markup.value && node.markup.value.filters.length > 0 ? line : ' '
+
+      return tag(trailingWhitespace)
+    }
+
+    case NamedTags.guard: {
+      return tag(' ')
+    }
+
+    case NamedTags.apply:
+    case NamedTags.filter: {
+      const trailingWhitespace = node.markup.filters.length > 1 ? line : ' '
+
+      return tag(trailingWhitespace)
+    }
+
+    case NamedTags.autoescape: {
+      // `{% autoescape %}` takes no markup at all, so the name must not be
+      // followed by the usual separating space.
+      if (!node.markup.strategy) {
+        return wrapper([...prefix, node.name, ...suffix(' ')])
+      }
+
+      return tag(' ')
+    }
+
+    case NamedTags.with: {
+      if (!node.markup.context && !node.markup.onlyClause) {
+        return wrapper([...prefix, node.name, ...suffix(' ')])
+      }
+
+      return tag(' ')
+    }
+
+    case NamedTags.form: {
+      const trailingWhitespace = node.markup.withClause ? line : ' '
+
+      return tag(trailingWhitespace)
+    }
+
+    case NamedTags.macro: {
+      const trailingWhitespace = node.markup.parameters.length > 0 ? line : ' '
+
       return tag(trailingWhitespace)
     }
 
@@ -196,16 +253,6 @@ export function printCanvasBlockStart(
     )
   }
 
-  if (args.isCanvasStatement) {
-    console.log('isCanvasStatement')
-  }
-
-  const lines = markupLines(node.markup)
-
-  if (lines.length > 1) {
-    console.log('lines:', lines)
-  }
-
   const markup = node.markup
   return group([
     '{%',
@@ -244,7 +291,9 @@ export function printCanvasBlockEnd(
     trailingSpaceGroupId
   )
 
-  return group(['{%', whitespaceStart, ` end${node.name} `, whitespaceEnd, '%}'])
+  const delimiterMarkup = node.delimiterMarkup ? ` ${node.delimiterMarkup}` : ''
+
+  return group(['{%', whitespaceStart, ` end${node.name}${delimiterMarkup} `, whitespaceEnd, '%}'])
 }
 
 function getNodeContent(node: CanvasTag) {
@@ -348,13 +397,22 @@ export function printCanvasRawTag(
         ' ',
         node.name,
         ' ',
-        node.markup ? `${node.markup} ` : '',
+        node.markup.trim() ? `${node.markup.trim()} ` : '',
         node.whitespaceEnd,
         '%}',
       ])
   const blockEnd = isCanvasStatement
     ? ['end', node.name]
-    : ['{%', node.whitespaceStart, ' ', 'end', node.name, ' ', node.whitespaceEnd, '%}']
+    : [
+        '{%',
+        node.delimiterWhitespaceStart,
+        ' ',
+        'end',
+        node.name,
+        ' ',
+        node.delimiterWhitespaceEnd,
+        '%}',
+      ]
 
   if (shouldPrintAsIs) {
     body = [node.source.slice(node.blockStartPosition.end, node.blockEndPosition.start)]

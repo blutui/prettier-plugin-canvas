@@ -19,6 +19,7 @@
     "build": "tsup",
     "prebuild": "node scripts/build.cjs",
     "test": "vitest run",
+    "try": "node scripts/build.cjs && vite-node --config vitest.config.ts scripts/try.ts --",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -32,6 +33,7 @@
     "@types/node": "^26.1.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
+    "vite-node": "^6.0.0",
     "vitest": "^4.0.10"
   },
   "volta": {

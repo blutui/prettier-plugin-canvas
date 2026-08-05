@@ -32,7 +32,7 @@ Helpers {
 Canvas <: Helpers {
 	Node := (canvasNode | TextNode)*
     openControl := "{{" | "{%"
-    endOfTagName = &("-%}" | "-}}" | "%}" | "}}")
+    endOfTagName = &("-%}" | "~%}" | "-}}" | "~}}" | "%}" | "}}")
     endOfVarName = ~identifierCharacter
     endOfIdentifier = endOfTagName | endOfVarName
 
@@ -47,6 +47,7 @@ Canvas <: Helpers {
     canvasTagStrict =
     	| canvasTagDo
     	| canvasTagExtends
+    	| canvasTagElseif
     	| canvasTagElse
       | canvasTagInclude
       | canvasTagSet
@@ -61,36 +62,61 @@ Canvas <: Helpers {
       | canvasTagOpenBlock
       | canvasTagOpenFor
       | canvasTagOpenGuard
+      | canvasTagOpenEmbed
+      | canvasTagOpenFilter
+      | canvasTagOpenForm
       | canvasTagOpenIf
+      | canvasTagOpenMacro
+      | canvasTagOpenSet
+      | canvasTagOpenWith
 
     canvasTagOpen =
     	| canvasTagOpenStrict
       | canvasTagOpenBaseCase
 
-    canvasTagClose = "{%" "-"? space* "end" blockName space* tagMarkup "-"? "%}"
+    // Whitespace control modifiers. `-` trims all whitespace (including
+    // newlines), `~` trims only the whitespace on the line.
+    canvasTrim = "-" | "~"
+
+    canvasTagClose = "{%" canvasTrim? space* "end" endBlockName space* tagMarkup canvasTrim? "%}"
 
     // These two are the same but transformed differently
     canvasTagRule<name, markup> =
-    	"{%" "-"? space* (name endOfIdentifier) space* markup "-"? "%}"
+    	"{%" canvasTrim? space* (name endOfIdentifier) space* markup canvasTrim? "%}"
     canvasTagOpenRule<name, markup> =
-    	"{%" "-"? space* (name endOfIdentifier) space* markup "-"? "%}"
+    	"{%" canvasTrim? space* (name endOfIdentifier) space* markup canvasTrim? "%}"
 
     canvasTagBaseCase = canvasTagRule<canvasTagName, tagMarkup>
 
     canvasTagOpenApply = canvasTagOpenRule<"apply", canvasTagOpenApplyMarkup>
+    // `filter` is the legacy alias of `apply` and takes the same markup.
+    canvasTagOpenFilter = canvasTagOpenRule<"filter", canvasTagOpenApplyMarkup>
     canvasTagOpenApplyMarkup = space* initialFilter<delimTag> (additionalFilters<delimTag>)? space*
 
     canvasTagOpenAutoescape = canvasTagOpenRule<"autoescape", canvasTagOpenAutoescapeMarkup>
-    canvasTagOpenAutoescapeMarkup = (canvasString<delimTag> | canvasLiteral) space*
+    canvasTagOpenAutoescapeMarkup = (canvasString<delimTag> | canvasLiteral)? space*
 
-    canvasTagOpenBlock =
-    	| canvasTagOpenRule<"block", canvasTagOpenBlockMarkup>
-      | canvasTagOpenRule<"block", canvasTagOpenBlockShortcutMarkup>
-    canvasTagOpenBlockMarkup = arguments<delimTag> space*
-    canvasTagOpenBlockShortcutMarkup = canvasTagOpenBlockMarkup canvasVariable<delimTag>
+    canvasTagOpenWith = canvasTagOpenRule<"with", canvasTagOpenWithMarkup>
+    canvasTagOpenWithMarkup = space* canvasExpression<delimTag>? includeOnlyClause? space*
+
+    canvasTagOpenForm = canvasTagOpenRule<"form", canvasTagOpenFormMarkup>
+    canvasTagOpenFormMarkup = space* canvasExpression<delimTag> includeWithClause<delimTag>? space*
+
+    canvasTagOpenMacro = canvasTagOpenRule<"macro", canvasTagOpenMacroMarkup>
+    canvasTagOpenMacroMarkup =
+    	space* variableSegment space* "(" space* macroParameterList? space* ")" space*
+    macroParameterList = nonemptyListOf<macroParameter, argumentSeparator>
+    macroParameter = variableSegment macroParameterDefault?
+    macroParameterDefault = space* "=" space* canvasExpression<delimTag>
+
+    canvasTagOpenBlock = canvasTagOpenRule<"block", canvasTagOpenBlockMarkup>
+    // `{% block title %}` or the shortcut `{% block title page_title | title %}`
+    canvasTagOpenBlockMarkup = space* variableSegment blockShortcutValue? space*
+    blockShortcutValue = space+ canvasVariable<delimTag>
 
     canvasTagOpenGuard = canvasTagOpenRule<"guard", canvasTagOpenGuardMarkup>
-    canvasTagOpenGuardMarkup = ("filter" | "function" | "test") space* variableSegment space*
+    canvasTagOpenGuardMarkup = space* guardKind space* variableSegment space*
+    guardKind = "filter" | "function" | "test"
 
     canvasTagDo = canvasTagRule<"do", canvasTagDoMarkup>
     canvasTagDoMarkup = canvasVariable<delimTag>
@@ -111,14 +137,31 @@ Canvas <: Helpers {
     includeWithClause<delim> = space+ "with" space+ canvasExpression<delim>
     includeOnlyClause = space+ "only"
 
+    // `embed` takes exactly the same markup as `include`, it just opens a block.
+    canvasTagOpenEmbed = canvasTagOpenRule<"embed", canvasTagIncludeMarkup>
+
     canvasTagSet = canvasTagRule<"set", canvasTagSetMarkup>
     canvasTagSetMarkup = variableSegment space* "=" space* canvasVariable<delimTag>
+
+    // The capture form: a bare name and no `=`, closed by {% endset %}.
+    canvasTagOpenSet = canvasTagOpenRule<"set", canvasTagOpenSetMarkup>
+    canvasTagOpenSetMarkup = variableSegment space* ~"="
 
     canvasTagOpenBaseCase = canvasTagOpenRule<blockName, tagMarkup>
 
     canvasTagOpenFor = canvasTagOpenRule<"for", canvasTagOpenForMarkup>
     canvasTagOpenForMarkup =
-    	keyValueIteration space* "in" space* (canvasVariable<delimTag> | canvasRange<delimTag>) space*
+    	keyValueIteration space* "in" space* canvasForCollection<delimTag> space*
+
+    // A range may be written bare here: `{% for i in 0..10 %}`
+    canvasForCollection<delim> =
+    	| canvasBareRange<delim>
+      | canvasVariable<delim>
+      | canvasRange<delim>
+
+    canvasBareRange<delim> =
+    	canvasRangeOperand<delim> space* ".." space* canvasRangeOperand<delim>
+    canvasRangeOperand<delim> = canvasExpression<delim> canvasFilter<delim>*
     keyValueIteration =
     	| keyValueSegment
       | variableSegment
@@ -128,10 +171,16 @@ Canvas <: Helpers {
 
     canvasTagElse = canvasTagRule<"else", empty>
 
+    canvasTagElseif = canvasTagRule<"elseif", canvasTagOpenConditionalMarkup>
+
     canvasTagOpenConditionalMarkup = nonemptyListOf<condition<delimTag>, conditionSeparator> space*
     conditionSeparator = &logicalOperator
+    // `comparison` is deliberately not listed here: canvasExpression already
+    // reaches it through canvasComparison, and naming it first makes ohm seed
+    // its left recursion from the wrong place, which breaks bare variable
+    // conditions such as `{% if a %}`.
     condition<delim> =
-    	logicalOperator? space* (comparison<delim> | canvasTestExpression<delim> | canvasExpression<delim>) space*
+    	logicalOperator? space* (canvasTestExpression<delim> | canvasExpression<delim>) space*
     logicalOperator = ("and" | "xor" | "or" | "not" | "in" | "not in") ~identifier
     testOperator = ("constant" | "defined" | "divisible by" | "empty" | "even" | "iterable" | "null" | "odd" | "same as") ~identifier
     comparison<delim> =
@@ -147,22 +196,29 @@ Canvas <: Helpers {
       | "in"
       | "not in")
 
-    canvasTestExpression<delim> = canvasExpression<delim> space* ("is" | "is not") space* testOperator (space* "(" space* arguments<delim>? space* ")")?
+    // "is not" has to precede "is", otherwise "is" wins and the trailing "not"
+    // is left for testOperator, which can never match it.
+    canvasTestExpression<delim> =
+    	canvasExpression<delim> space* testRelation space* testOperator canvasTestArguments<delim>?
+    testRelation = ("is not" | "is") ~identifier
+    canvasTestArguments<delim> = space* "(" space* arguments<delim>? space* ")"
 
-    canvasOutput = "{{" "-"? space* canvasOutputCases "-"? "}}"
+    canvasOutput = "{{" canvasTrim? space* canvasOutputCases canvasTrim? "}}"
     canvasOutputCases = canvasVariable<delimVO> | canvasOutputBaseCase
     canvasOutputBaseCase = anyExceptStar<delimVO>
 
     canvasRawTag =
       | canvasRawTagImpl<"verbatim">
+      | canvasRawTagImpl<"canopy">
     canvasRawTagImpl<name> =
-      "{%" "-"? space* (name endOfIdentifier) space* tagMarkup "-"? "%}"
+      "{%" canvasTrim? space* (name endOfIdentifier) space* tagMarkup canvasTrim? "%}"
       anyExceptStar<canvasRawTagClose<name>>
-      "{%" "-"? space* "end" (name endOfIdentifier) space* "-"? "%}"
+      "{%" canvasTrim? space* "end" (name endOfIdentifier) space* tagMarkup canvasTrim? "%}"
     canvasRawTagClose<name> =
-      "{%" "-"? space* "end" (name endOfIdentifier) space* "-"? "%}"
+      "{%" canvasTrim? space* "end" (name endOfIdentifier) space* tagMarkup canvasTrim? "%}"
 
-    canvasComment = "{#" space* anyExceptStar<"#}"> space* "#}"
+    canvasComment = "{#" canvasTrim? anyExceptStar<canvasCommentEnd> canvasTrim? "#}"
+    canvasCommentEnd = canvasTrim? "#}"
 
     canvasVariable<delim> = canvasExpression<delim> canvasFilter<delim>* space* &delim
 
@@ -204,7 +260,15 @@ Canvas <: Helpers {
     	identifier space* "(" space* arguments<delim>? space* ")"
 
     canvasArrowFunction<delim> =
+    	| canvasArrowFunctionParenthesized<delim>
+      | canvasArrowFunctionBare<delim>
+
+    canvasArrowFunctionParenthesized<delim> =
     	"(" space* arrowFunctionArgumentList<delim> space* ")" space* "=>" space* canvasExpression<delim>
+
+    // A single argument does not need parentheses: `filter(v => v > 38)`
+    canvasArrowFunctionBare<delim> =
+    	arrowFunctionArgumentList<delim> space* "=>" space* canvasExpression<delim>
 
     arrowFunctionArgumentList<delim> =
   		nonemptyListOf<variableSegmentAsLookup, argumentSeparator>
@@ -253,20 +317,31 @@ Canvas <: Helpers {
     canvasTagName =
     	letter (alnum | "_")*
 
-    blockName =
+    blockName = blockNameChoice endOfIdentifier
+
+    blockNameChoice =
     	// Blutui blocks
         ( "form"
         // Base blocks
         | "apply"
         | "autoescape"
         | "block"
+        | "embed"
+        | "filter"
         | "for"
         | "guard"
         | "if"
-        ) endOfIdentifier
+        | "macro"
+        | "with"
+        )
 
-    delimTag = "-%}" | "%}"
-    delimVO = "-}}" | "}}"
+    // `set` is both a statement (`{% set a = 1 %}`) and a block (`{% set a %}`
+    // … `{% endset %}`), so it only closes blocks — it never opens one through
+    // the generic base case.
+    endBlockName = (blockNameChoice | "set") endOfIdentifier
+
+    delimTag = "-%}" | "~%}" | "%}"
+    delimVO = "-}}" | "~}}" | "}}"
 }
 
 CanvasHTML <: Canvas {
