@@ -32,7 +32,7 @@
     "@types/node": "^26.1.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.10"
+    "vitest": "^4.1.10"
   },
   "volta": {
     "node": "24.11.0"
