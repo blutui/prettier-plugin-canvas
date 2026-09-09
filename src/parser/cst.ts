@@ -201,7 +201,7 @@ export interface ConcreteCanvasTagOpenFor
 
 export interface ConcreteCanvasTagOpenApply
   extends ConcreteCanvasTagOpenNode<
-    NamedTags.apply | NamedTags.filter,
+    NamedTags.apply,
     ConcreteCanvasApplyMarkup
   > {}
 export interface ConcreteCanvasTagOpenAutoescape
@@ -638,7 +638,6 @@ function toCST<T>(
     canvasTagOpenGuard: 0,
     canvasTagOpenIf: 0,
     canvasTagOpenEmbed: 0,
-    canvasTagOpenFilter: 0,
     canvasTagOpenForm: 0,
     canvasTagOpenMacro: 0,
     canvasTagOpenWith: 0,

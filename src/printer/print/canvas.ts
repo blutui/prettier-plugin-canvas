@@ -166,8 +166,7 @@ function printNamedCanvasBlockStart(
       return tag(' ')
     }
 
-    case NamedTags.apply:
-    case NamedTags.filter: {
+    case NamedTags.apply: {
       const trailingWhitespace = node.markup.filters.length > 1 ? line : ' '
 
       return tag(trailingWhitespace)

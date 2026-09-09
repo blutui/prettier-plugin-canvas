@@ -39,24 +39,6 @@ describe('Canvas Tag: apply/autoescape/guard', () => {
     )
   })
 
-  test('it should format the legacy filter alias the same way', async () => {
-    const result = await format(
-      heredoc`
-        {% filter upper|escape %}
-          hello
-        {% endfilter %}
-      `
-    )
-
-    expect(result).toBe(
-      heredoc`
-        {% filter upper | escape %}
-          hello
-        {% endfilter %}
-      `
-    )
-  })
-
   test('it should format autoescape with no strategy', async () => {
     const result = await format(
       heredoc`

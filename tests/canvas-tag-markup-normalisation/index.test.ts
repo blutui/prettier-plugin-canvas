@@ -29,9 +29,8 @@ describe('Canvas Tag: Markup Normalisation', () => {
     [`{% for i in 0..10 %}x{% endfor %}`, `{% for i in 0..10 -%}\n  x\n{%- endfor %}`],
     [`{% for i in (0..10) %}x{% endfor %}`, `{% for i in (0..10) -%}\n  x\n{%- endfor %}`],
 
-    // apply / filter
+    // apply
     [`{% apply upper|escape %}x{% endapply %}`, `{% apply upper | escape %}x{% endapply %}`],
-    [`{% filter upper|escape %}x{% endfilter %}`, `{% filter upper | escape %}x{% endfilter %}`],
 
     // autoescape
     [`{% autoescape %}x{% endautoescape %}`, `{% autoescape %}x{% endautoescape %}`],

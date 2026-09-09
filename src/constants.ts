@@ -38,7 +38,6 @@ export const CSS_DISPLAY_CANVAS_TAGS: Record<string, string> = {
 
   // output filtering tags
   apply: 'inline',
-  filter: 'inline',
   autoescape: 'inline',
   with: 'inline',
 

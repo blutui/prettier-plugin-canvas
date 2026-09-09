@@ -63,7 +63,6 @@ Canvas <: Helpers {
       | canvasTagOpenFor
       | canvasTagOpenGuard
       | canvasTagOpenEmbed
-      | canvasTagOpenFilter
       | canvasTagOpenForm
       | canvasTagOpenIf
       | canvasTagOpenMacro
@@ -89,8 +88,6 @@ Canvas <: Helpers {
     canvasTagBaseCase = canvasTagRule<canvasTagName, tagMarkup>
 
     canvasTagOpenApply = canvasTagOpenRule<"apply", canvasTagOpenApplyMarkup>
-    // `filter` is the legacy alias of `apply` and takes the same markup.
-    canvasTagOpenFilter = canvasTagOpenRule<"filter", canvasTagOpenApplyMarkup>
     canvasTagOpenApplyMarkup = space* initialFilter<delimTag> (additionalFilters<delimTag>)? space*
 
     canvasTagOpenAutoescape = canvasTagOpenRule<"autoescape", canvasTagOpenAutoescapeMarkup>
@@ -327,7 +324,6 @@ Canvas <: Helpers {
         | "autoescape"
         | "block"
         | "embed"
-        | "filter"
         | "for"
         | "guard"
         | "if"

@@ -290,9 +290,8 @@ export interface GuardMarkup extends ASTNode<NodeTypes.GuardMarkup> {
   name: string
 }
 
-/** {% apply lower | escape('html') %} — `filter` is the legacy alias. */
-export interface CanvasTagApply
-  extends CanvasTagNode<NamedTags.apply | NamedTags.filter, ApplyMarkup> {}
+/** {% apply lower | escape('html') %} */
+export interface CanvasTagApply extends CanvasTagNode<NamedTags.apply, ApplyMarkup> {}
 
 export interface ApplyMarkup extends ASTNode<NodeTypes.ApplyMarkup> {
   /** The chain, starting with the filter that carries no leading `|` */
@@ -626,7 +625,6 @@ export enum NamedTags {
   do = 'do',
   elseif = 'elseif',
   embed = 'embed',
-  filter = 'filter',
   for = 'for',
   form = 'form',
   guard = 'guard',

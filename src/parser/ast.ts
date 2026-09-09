@@ -673,8 +673,7 @@ function toNamedCanvasTag(
       }
     }
 
-    case NamedTags.apply:
-    case NamedTags.filter: {
+    case NamedTags.apply: {
       return {
         ...canvasTagBaseAttributes(node),
         name: node.name,
