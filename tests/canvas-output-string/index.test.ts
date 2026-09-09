@@ -30,4 +30,33 @@ describe('Canvas Output: String', () => {
       `
     )
   })
+
+  test('it should keep double quotes for strings using interpolation, since #{...} only works in double quotes', async () => {
+    const result = await format(
+      heredoc`
+        {{ "Hello #{name}" }}
+      `
+    )
+
+    expect(result).toBe(
+      heredoc`
+        {{ "Hello #{name}" }}
+      `
+    )
+  })
+
+  test('it should still convert a plain single-quoted string to the preferred quote', async () => {
+    const result = await format(
+      heredoc`
+        {{ 'hello' }}
+      `,
+      { canvasSingleQuote: false }
+    )
+
+    expect(result).toBe(
+      heredoc`
+        {{ "hello" }}
+      `
+    )
+  })
 })

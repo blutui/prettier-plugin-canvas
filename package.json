@@ -19,6 +19,7 @@
     "build": "tsup",
     "prebuild": "node scripts/build.cjs",
     "test": "vitest run",
+    "try": "node scripts/build.cjs && vite-node --config vitest.config.ts scripts/try.ts --",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
