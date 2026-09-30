@@ -11,6 +11,10 @@ jobs:
 
     name: Publish to NPM
 
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -19,15 +23,14 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: lts/*
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Clean install dependencies
         run: |
           npm ci
 
-      - name: Build OHM Grammar
+      - name: Build package
         run: |
-          node scripts/build.cjs
+          npm run build
 
       - name: Run tests
         run: |
@@ -41,7 +44,5 @@ jobs:
           npm version $VERSION --no-git-tag-version
 
       - name: Publish to NPM
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm publish
+          npm stage publish
