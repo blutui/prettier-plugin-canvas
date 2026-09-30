@@ -42,7 +42,6 @@ function printChild(
   const child = childPath.node
 
   if (hasPrettierIgnore(child)) {
-    console.log('prettier ignore printChild')
   }
 
   return print(childPath, args)

@@ -22,6 +22,12 @@ export type CanvasPrinterArgs = {
   trailingSpaceGroupId?: symbol[] | symbol
   isCanvasStatement?: boolean
   truncate?: boolean
+
+  /**
+   * The first filter of an `{% apply %}` chain is written without a leading
+   * `|`, unlike every other filter application.
+   */
+  omitFilterPipe?: boolean
 }
 export type CanvasPrinter = (path: AstPath<CanvasHtmlNode>, args?: CanvasPrinterArgs) => Doc
 

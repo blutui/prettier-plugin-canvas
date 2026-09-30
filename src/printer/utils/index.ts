@@ -28,11 +28,12 @@ export function getWhitespaceTrim(
   needsWhitespaceStrippingOnBreak: boolean | undefined,
   groupIds?: symbol | symbol[]
 ): Doc {
-  return ifBreakChain(
-    needsWhitespaceStrippingOnBreak ? '-' : currWhitespaceTrim,
-    currWhitespaceTrim,
-    Array.isArray(groupIds) ? groupIds : [groupIds]
-  )
+  // `~` only trims whitespace on the line, and deliberately keeps the newline
+  // that `-` would eat. Upgrading it would change what the template renders,
+  // so an author-written `~` is always left alone.
+  const onBreak = needsWhitespaceStrippingOnBreak && currWhitespaceTrim !== '~' ? '-' : currWhitespaceTrim
+
+  return ifBreakChain(onBreak, currWhitespaceTrim, Array.isArray(groupIds) ? groupIds : [groupIds])
 }
 
 // Threads ifBreak into multiple sources of breakage (paragraph or self, etc.)

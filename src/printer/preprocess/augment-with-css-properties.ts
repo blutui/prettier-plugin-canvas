@@ -95,6 +95,7 @@ function getCssDisplay(node: AugmentedNode<WithSiblings>, options: CanvasParserO
 
     case NodeTypes.HtmlDoctype:
     case NodeTypes.HtmlComment:
+    case NodeTypes.CanvasComment:
       return 'block'
 
     case NodeTypes.Document:
@@ -117,7 +118,19 @@ function getCssDisplay(node: AugmentedNode<WithSiblings>, options: CanvasParserO
     case NodeTypes.IncludeWithClause:
     case NodeTypes.IncludeOnlyClause:
     case NodeTypes.SetMarkup:
+    case NodeTypes.ForMarkup:
+    case NodeTypes.ApplyMarkup:
+    case NodeTypes.AutoescapeMarkup:
+    case NodeTypes.WithMarkup:
+    case NodeTypes.FormMarkup:
+    case NodeTypes.MacroMarkup:
+    case NodeTypes.MacroParameter:
+    case NodeTypes.BlockMarkup:
+    case NodeTypes.GuardMarkup:
     case NodeTypes.LogicalExpression:
+    case NodeTypes.TestExpression:
+    case NodeTypes.TernaryExpression:
+    case NodeTypes.UnaryExpression:
     case NodeTypes.Comparison:
       return 'should not be relevant'
 
@@ -177,6 +190,7 @@ function getNodeCssStyleWhiteSpace(
 
     case NodeTypes.HtmlDoctype:
     case NodeTypes.HtmlComment:
+    case NodeTypes.CanvasComment:
       return CSS_WHITE_SPACE_DEFAULT
 
     case NodeTypes.Document:
@@ -199,7 +213,19 @@ function getNodeCssStyleWhiteSpace(
     case NodeTypes.IncludeWithClause:
     case NodeTypes.IncludeOnlyClause:
     case NodeTypes.SetMarkup:
+    case NodeTypes.ForMarkup:
+    case NodeTypes.ApplyMarkup:
+    case NodeTypes.AutoescapeMarkup:
+    case NodeTypes.WithMarkup:
+    case NodeTypes.FormMarkup:
+    case NodeTypes.MacroMarkup:
+    case NodeTypes.MacroParameter:
+    case NodeTypes.BlockMarkup:
+    case NodeTypes.GuardMarkup:
     case NodeTypes.LogicalExpression:
+    case NodeTypes.TestExpression:
+    case NodeTypes.TernaryExpression:
+    case NodeTypes.UnaryExpression:
     case NodeTypes.Comparison:
       return 'should not be relevant'
 

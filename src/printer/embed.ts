@@ -8,6 +8,7 @@ const {
 } = doc
 
 export const ParserMap: { [key in RawMarkupKinds]: string | null } = {
+  [RawMarkupKinds.canvas]: 'canvas',
   [RawMarkupKinds.css]: 'css',
   [RawMarkupKinds.html]: 'html',
   [RawMarkupKinds.javascript]: 'babel',
@@ -45,6 +46,16 @@ export const embed: Printer<CanvasHtmlNode>['embed'] = (path, options) => {
 
 function shouldIndentBody(node: RawMarkup, options: {}): boolean {
   const parentNode = node.parentNode
-  const shouldNotIndentBody = parentNode && parentNode.type === NodeTypes.CanvasRawTag
-  return !shouldNotIndentBody
+
+  if (!parentNode || parentNode.type !== NodeTypes.CanvasRawTag) {
+    return true
+  }
+
+  // A raw tag sitting at the top of the file keeps its body flush at column 0.
+  // That's how Canopy block templates are written, and it avoids indenting a
+  // whole section body for no reason. Once the tag is nested inside markup the
+  // body has to follow it, otherwise it ends up detached from its delimiters.
+  const grandParentNode = parentNode.parentNode
+
+  return !!grandParentNode && grandParentNode.type !== NodeTypes.Document
 }

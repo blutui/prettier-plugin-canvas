@@ -234,8 +234,9 @@ function printNode(
     }
 
     case NodeTypes.HtmlDoctype: {
-      console.log('print:', NodeTypes.HtmlDoctype)
-      return ''
+      // Printed straight from the source so neither the casing nor a legacy
+      // doctype string is altered.
+      return node.source.slice(node.position.start, node.position.end)
     }
 
     case NodeTypes.HtmlComment: {
@@ -268,6 +269,36 @@ function printNode(
       ]
     }
 
+    case NodeTypes.CanvasComment: {
+      // Comment bodies are never reflowed, only re-indented. When the body
+      // starts on the line after `{#` every line shares the same indentation,
+      // otherwise the first line sits against the delimiter and is measured
+      // separately from the rest.
+      const startsOnNextLine = /^[ \t]*\r?\n/.test(node.body)
+      const lines = reindent(bodyLines(node.body), !startsOnNextLine)
+
+      if (lines.length <= 1) {
+        const body = (lines[0] ?? '').trim()
+
+        return [
+          '{#',
+          node.whitespaceStart,
+          body ? ` ${body} ` : ' ',
+          node.whitespaceEnd,
+          '#}',
+        ]
+      }
+
+      return [
+        '{#',
+        node.whitespaceStart,
+        indent([hardline, join(hardline, lines)]),
+        hardline,
+        node.whitespaceEnd,
+        '#}',
+      ]
+    }
+
     case NodeTypes.IncludeMarkup: {
       const snippet = path.call((p: any) => print(p), 'snippet')
       const doc: Doc = [snippet]
@@ -295,15 +326,105 @@ function printNode(
       return node.value
     }
 
+    case NodeTypes.ForMarkup: {
+      return [
+        node.variables.join(', '),
+        ' in ',
+        path.call((p: any) => print(p), 'collection'),
+      ]
+    }
+
+    case NodeTypes.BlockMarkup: {
+      if (!node.value) return node.name
+
+      return [node.name, ' ', path.call((p: any) => print(p), 'value')]
+    }
+
+    case NodeTypes.GuardMarkup: {
+      return [node.kind, ' ', node.name]
+    }
+
+    case NodeTypes.ApplyMarkup: {
+      // The first filter carries no leading `|`.
+      const filters = path.map(
+        (p: any, index: number) => print(p, { ...args, omitFilterPipe: index === 0 }),
+        'filters'
+      )
+
+      return join(' ', filters)
+    }
+
+    case NodeTypes.AutoescapeMarkup: {
+      if (!node.strategy) return ''
+
+      return path.call((p: any) => print(p), 'strategy')
+    }
+
+    case NodeTypes.WithMarkup: {
+      const doc: Doc = []
+      if (node.context) {
+        doc.push(path.call((p: any) => print(p), 'context'))
+      }
+      if (node.onlyClause) {
+        doc.push(doc.length > 0 ? ' only' : 'only')
+      }
+
+      return doc
+    }
+
+    case NodeTypes.FormMarkup: {
+      const doc: Doc = [path.call((p: any) => print(p), 'handle')]
+      if (node.withClause) {
+        doc.push(
+          ' ',
+          path.call((p: any) => print(p), 'withClause')
+        )
+      }
+
+      return doc
+    }
+
+    case NodeTypes.MacroMarkup: {
+      const parameters = path.map((p: any) => print(p), 'parameters')
+
+      return [node.name, '(', join(', ', parameters), ')']
+    }
+
+    case NodeTypes.MacroParameter: {
+      if (!node.defaultValue) return node.name
+
+      return [node.name, ' = ', path.call((p: any) => print(p), 'defaultValue')]
+    }
+
     case NodeTypes.SetMarkup: {
       const assignments = path.call((p: any) => print(p), 'value')
 
       return [node.name, ' = ', assignments]
     }
 
+    case NodeTypes.TernaryExpression: {
+      return group([
+        path.call((p: any) => print(p), 'condition'),
+        indent([
+          line,
+          '? ',
+          path.call((p: any) => print(p), 'consequent'),
+          line,
+          ': ',
+          path.call((p: any) => print(p), 'alternate'),
+        ]),
+      ])
+    }
+
+    case NodeTypes.UnaryExpression: {
+      return [node.operator, ' ', path.call((p: any) => print(p), 'expression')]
+    }
+
     case NodeTypes.LogicalExpression: {
-      console.log('print:', NodeTypes.LogicalExpression)
-      return ''
+      return group([
+        path.call((p: any) => print(p), 'left'),
+        indent([line, node.relation, ' ', path.call((p: any) => print(p), 'right')]),
+      ])
     }
 
     case NodeTypes.Comparison: {
@@ -311,6 +432,20 @@ function printNode(
         path.call((p: any) => print(p), 'left'),
         indent([line, node.comparator, ' ', path.call((p: any) => print(p), 'right')]),
       ])
+    }
+
+    case NodeTypes.TestExpression: {
+      const doc: Doc = [
+        path.call((p: any) => print(p), 'expression'),
+        node.negate ? ' is not ' : ' is ',
+        node.name,
+      ]
+
+      if (node.args.length > 0) {
+        doc.push('(', join(', ', path.map((p: any) => print(p), 'args')), ')')
+      }
+
+      return doc
     }
 
     case NodeTypes.CanvasVariable: {
@@ -330,25 +465,29 @@ function printNode(
     }
 
     case NodeTypes.CanvasFilter: {
-      let args: Doc[] = []
+      let filterArgs: Doc[] = []
 
       if (node.args.length > 0) {
         const printed = path.map((p) => print(p), 'args')
 
-        args = [
+        filterArgs = [
           '(',
           indent(align(2, [softline, join([',', line], printed)])),
           align(2, [softline, ')']),
         ]
       }
 
-      return group(['| ', node.name, ...args])
+      return group([args.omitFilterPipe ? '' : '| ', node.name, ...filterArgs])
     }
 
     case NodeTypes.NamedArgument: {
+      // `=` and `:` are not interchangeable in the docs, so print back whichever
+      // the source used rather than normalising to one.
+      const separator = node.separator === '=' ? ' = ' : ': '
+
       return [
         path.call((p: any) => print(p), 'name'),
-        ': ',
+        separator,
         path.call((p: any) => print(p), 'value'),
       ]
     }
@@ -366,7 +505,11 @@ function printNode(
     }
 
     case NodeTypes.String: {
-      const preferredQuote = options.canvasSingleQuote ? `'` : `"`
+      // String interpolation (`#{...}`) only works inside double-quoted
+      // strings, so converting the quote style here would change what the
+      // template renders.
+      const hasInterpolation = !node.single && node.value.includes('#{')
+      const preferredQuote = hasInterpolation ? `"` : options.canvasSingleQuote ? `'` : `"`
       const valueHasQuotes = node.value.includes(preferredQuote)
       const quote = valueHasQuotes ? oppositeQuotes[preferredQuote] : preferredQuote
 
@@ -382,13 +525,13 @@ function printNode(
     }
 
     case NodeTypes.Range: {
-      return [
-        '(',
+      const range: Doc = [
         path.call((p) => print(p, { truncate: true }), 'start'),
         '..',
         path.call((p) => print(p, { truncate: true }), 'end'),
-        ')',
       ]
+
+      return node.parenthesized ? ['(', ...range, ')'] : range
     }
 
     case NodeTypes.Sequence: {
@@ -457,7 +600,9 @@ function printNode(
         }
       }
 
-      return group(['(', ...args, ') => ', path.call((p: any) => print(p), 'expression')])
+      const signature: Doc = node.parenthesized ? ['(', ...args, ')'] : args
+
+      return group([...signature, ' => ', path.call((p: any) => print(p), 'expression')])
     }
 
     case NodeTypes.VariableLookup: {
